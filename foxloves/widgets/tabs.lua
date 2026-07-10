@@ -31,7 +31,17 @@ function Tabs.new(opts)
   self.onChange = opts.onChange
   self.theme = opts.theme or defaultTheme
   self.hoverTab = nil  -- header segment under the cursor, or nil
+  self.focusable = true
   return self
+end
+
+-- Switch to tab index i (clamped), firing onChange when it changes.
+function Tabs:_select(i)
+  i = math.max(1, math.min(#self.tabs, i))
+  if i ~= self.selected then
+    self.selected = i
+    if self.onChange then self.onChange(i) end
+  end
 end
 
 -- Bounds of tab header segment i.
@@ -79,6 +89,8 @@ function Tabs:draw()
     love.graphics.printf(entry.label, tx, ly, tw, "center")
   end
 
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.headerH) end
+
   love.graphics.setColor(r, g, b, a)
 
   local panel = self:current()
@@ -108,8 +120,17 @@ function Tabs:mousereleased(px, py, btn)
 end
 
 function Tabs:keypressed(key)
+  -- The active panel gets first refusal, so arrows/typing inside a focused
+  -- child (e.g. a Textbox) are not stolen for tab switching.
   local panel = self:current()
-  if panel then return panel:keypressed(key) end
+  if panel and panel:keypressed(key) then return true end
+  if util.isFocused(self) then
+    if key == "left" then self:_select(self.selected - 1); return true
+    elseif key == "right" then self:_select(self.selected + 1); return true
+    elseif key == "home" then self:_select(1); return true
+    elseif key == "end" then self:_select(#self.tabs); return true
+    end
+  end
   return false
 end
 

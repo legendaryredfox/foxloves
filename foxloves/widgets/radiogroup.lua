@@ -32,7 +32,17 @@ function RadioGroup.new(opts)
   self.theme = opts.theme or defaultTheme
   self.diameter = 18
   self.pressed = nil  -- index pressed this cycle, or nil
+  self.hover = nil    -- row index under the cursor, or nil
+  self.focusable = true
   return self
+end
+
+-- Set selection to index i, firing onChange when it changes.
+function RadioGroup:_select(i)
+  if i ~= self.selected and self.options[i] then
+    self.selected = i
+    if self.onChange then self.onChange(i) end
+  end
 end
 
 -- Hit rectangle for row i (circle plus its label).
@@ -53,7 +63,10 @@ function RadioGroup:rowAt(px, py)
   return nil
 end
 
-function RadioGroup:update(dt) end
+function RadioGroup:update(dt)
+  local mx, my = love.mouse.getPosition()
+  self.hover = self.disabled and nil or self:rowAt(mx, my)
+end
 
 function RadioGroup:draw()
   local t = self.theme
@@ -62,11 +75,20 @@ function RadioGroup:draw()
   love.graphics.setFont(font)
 
   local d = self.diameter
+  local focused = util.isFocused(self)
   for i = 1, #self.options do
-    local rx, ry = self:rowBounds(i)
+    local rx, ry, rw = self:rowBounds(i)
     local cx, cy = rx + d / 2, ry + d / 2
 
-    love.graphics.setColor(self.disabled and t.color.disabled or t.color.fg)
+    -- Focus ring highlights the active row while the group holds focus.
+    if focused and i == self.selected then
+      util.focusRing(t, rx, ry, rw, d)
+    end
+
+    local fill = t.color.fg
+    if self.disabled then fill = t.color.disabled
+    elseif i == self.hover and i ~= self.selected then fill = t.color.hover end
+    love.graphics.setColor(fill)
     love.graphics.circle("fill", cx, cy, d / 2)
     love.graphics.setColor(t.color.border)
     love.graphics.circle("line", cx, cy, d / 2)
@@ -110,7 +132,24 @@ function RadioGroup:mousereleased(px, py, btn)
   return false
 end
 
-function RadioGroup:keypressed() return false end
+-- When focused: Up/Left and Down/Right move selection with wrap-around;
+-- Home/End jump to the first/last option.
+function RadioGroup:keypressed(key)
+  if self.disabled or not util.isFocused(self) then return false end
+  local n = #self.options
+  if n == 0 then return false end
+  local cur = self.selected or 1
+  if key == "up" or key == "left" then
+    self:_select((cur - 2) % n + 1); return true
+  elseif key == "down" or key == "right" then
+    self:_select(cur % n + 1); return true
+  elseif key == "home" then
+    self:_select(1); return true
+  elseif key == "end" then
+    self:_select(n); return true
+  end
+  return false
+end
 function RadioGroup:textinput() return false end
 
 return RadioGroup

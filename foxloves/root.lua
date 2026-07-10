@@ -182,22 +182,19 @@ function Root:keypressed(key)
     self:closeOverlay()
     return true
   end
+  -- A modal overlay traps every key (including Tab) before the base layer or a
+  -- background-focused widget can see it. The modal handles its own focus.
+  local top = self:topOverlay()
+  if top and top.modal then
+    return top.widget:keypressed(key)
+  end
   -- Tab cycles keyboard focus among focusable base widgets (Shift-Tab reverses).
-  -- Only when no modal overlay is trapping input.
   if key == "tab" then
-    local top = self:topOverlay()
-    if not (top and top.modal) then
-      local reverse = love.keyboard.isDown("lshift", "rshift")
-      if self:_cycleFocus(reverse) then return true end
-    end
+    local reverse = love.keyboard.isDown("lshift", "rshift")
+    if self:_cycleFocus(reverse) then return true end
   end
   if self.focused and self.focused:keypressed(key) then return true end
 
-  local top = self:topOverlay()
-  if top and top.modal then
-    -- Keyboard is confined to the modal subtree.
-    return top.widget:keypressed(key)
-  end
   for _, w in ipairs(self.base) do
     if w:keypressed(key) then return true end
   end

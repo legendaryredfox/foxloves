@@ -756,5 +756,197 @@ do
   check("draw with scroll no error", ok)
 end
 
+-- ------------------------------------------------ ListBox keyboard nav
+do
+  print("ListBox keyboard")
+  local items = {}
+  for i = 1, 20 do items[i] = "i" .. i end
+  local picked
+  local r = fox.Root.new()
+  local lb = r:add(fox.ListBox.new{ x = 0, y = 0, w = 100, h = 80, rowH = 20,
+    items = items, onChange = function(i) picked = i end })
+  check("focusable", lb.focusable == true)
+  check("visibleRows from height", lb:visibleRows() == 4)
+
+  r:setFocus(lb)
+  lb:keypressed("down")
+  check("first down selects row 1", lb.selected == 1)
+  lb:keypressed("down")
+  check("down advances", lb.selected == 2 and picked == 2)
+  lb:keypressed("up")
+  check("up retreats", lb.selected == 1)
+  lb:keypressed("end")
+  check("end selects last", lb.selected == 20)
+  check("end scrolls selection into view", lb.scroll == lb:maxScroll())
+  lb:keypressed("home")
+  check("home selects first", lb.selected == 1 and lb.scroll == 0)
+  lb:keypressed("pagedown")
+  check("pagedown pages by visible rows", lb.selected == 5)
+
+  -- Enter re-confirms current selection (fires onChange).
+  picked = nil
+  lb:keypressed("return")
+  check("enter re-confirms selection", picked == 5)
+
+  -- Unfocused ListBox ignores keys.
+  r:setFocus(nil)
+  check("unfocused ignores keys", lb:keypressed("down") == false)
+end
+
+-- ---------------------------------------------- RadioGroup keyboard + hover
+do
+  print("RadioGroup keyboard")
+  local idx
+  local r = fox.Root.new()
+  local rg = r:add(fox.RadioGroup.new{ x = 0, y = 0, options = { "a", "b", "c" },
+    spacing = 30, onChange = function(i) idx = i end })
+  r:setFocus(rg)
+  rg:keypressed("down")
+  check("down moves to 2", rg.selected == 2 and idx == 2)
+  rg:keypressed("up")
+  check("up moves back to 1", rg.selected == 1)
+  rg:keypressed("up")
+  check("up wraps to last", rg.selected == 3)
+  rg:keypressed("down")
+  check("down wraps to first", rg.selected == 1)
+  rg:keypressed("end")
+  check("end selects last", rg.selected == 3)
+  rg:keypressed("home")
+  check("home selects first", rg.selected == 1)
+
+  -- Hover tracks the row under the cursor.
+  local rx, ry = rg:rowBounds(2)
+  love_stub.setMouse(rx + 2, ry + 2)
+  rg:update(0.016)
+  check("hover tracks row 2", rg.hover == 2)
+  love_stub.setMouse(999, 999)
+  rg:update(0.016)
+  check("hover cleared off group", rg.hover == nil)
+end
+
+-- --------------------------------------------------- Tabs keyboard
+do
+  print("Tabs keyboard")
+  local function fakePanel(consumeKey)
+    local p = { pressed = false }
+    function p:update() end
+    function p:draw() end
+    function p:mousepressed() return false end
+    function p:mousereleased() end
+    function p:keypressed(k) return consumeKey ~= nil and k == consumeKey end
+    function p:textinput() return false end
+    return p
+  end
+  local switched
+  local r = fox.Root.new()
+  local tabs = r:add(fox.Tabs.new{ x = 0, y = 0, w = 300, headerH = 30,
+    tabs = { { label = "A", panel = fakePanel() },
+             { label = "B", panel = fakePanel() },
+             { label = "C", panel = fakePanel() } },
+    onChange = function(i) switched = i end })
+  r:setFocus(tabs)
+  tabs:keypressed("right")
+  check("right switches to 2", tabs.selected == 2 and switched == 2)
+  tabs:keypressed("left")
+  check("left switches to 1", tabs.selected == 1)
+  tabs:keypressed("end")
+  check("end selects last", tabs.selected == 3)
+  tabs:keypressed("home")
+  check("home selects first", tabs.selected == 1)
+
+  -- Active panel gets first refusal: a panel that consumes "right" blocks switch.
+  local r2 = fox.Root.new()
+  local blocker = r2:add(fox.Tabs.new{ x = 0, y = 0, w = 300, headerH = 30,
+    tabs = { { label = "A", panel = fakePanel("right") },
+             { label = "B", panel = fakePanel("right") } } })
+  r2:setFocus(blocker)
+  blocker:keypressed("right")
+  check("panel consumes key, no tab switch", blocker.selected == 1)
+end
+
+-- ------------------------------------------------ Modal focus trap
+do
+  print("Modal focus trap")
+  local bgClicks, primary = 0, false
+  local r = fox.Root.new()
+  -- A focusable background button that must NOT receive keys while modal open.
+  local bg = r:add(fox.Button.new{ x = 0, y = 0, w = 40, h = 20,
+    onClick = function() bgClicks = bgClicks + 1 end })
+  r:setFocus(bg)
+
+  local modal = fox.Modal.new{ buttons = {
+    { label = "Cancel" },
+    { label = "OK", onClick = function() primary = true end },
+  } }
+  r:openOverlay(modal, { modal = true })
+  check("default focus on primary (last) button", modal.focusIndex == 2)
+
+  -- Enter activates the default button, not the background one.
+  r:keypressed("return")
+  check("enter fired primary", primary == true)
+  check("background button not fired", bgClicks == 0)
+  check("modal closed after activate", #r.overlays == 0)
+
+  -- Tab cycles focus between buttons; Shift-Tab reverses.
+  local r2 = fox.Root.new()
+  local m2 = fox.Modal.new{ buttons = {
+    { label = "One" }, { label = "Two" }, { label = "Three" } } }
+  r2:openOverlay(m2, { modal = true })
+  check("starts on last", m2.focusIndex == 3)
+  r2:keypressed("tab")
+  check("tab wraps to first", m2.focusIndex == 1)
+  r2:keypressed("tab")
+  check("tab advances", m2.focusIndex == 2)
+  love_stub.setKey("lshift", true)
+  r2:keypressed("tab")
+  check("shift-tab reverses", m2.focusIndex == 1)
+  love_stub.setKey("lshift", false)
+
+  -- Space activates the focused (first) button.
+  local activated
+  local r3 = fox.Root.new()
+  local m3 = fox.Modal.new{ buttons = {
+    { label = "Go", onClick = function() activated = "go" end },
+    { label = "No" } } }
+  r3:openOverlay(m3, { modal = true })
+  m3.focusIndex = 1
+  r3:keypressed("space")
+  check("space activates focused button", activated == "go")
+end
+
+-- ------------------------------------- Dropdown popup flip + scroll
+do
+  print("Dropdown popup layout")
+  -- Screen is 800x600 in the stub. A dropdown near the bottom flips its popup up.
+  local r = fox.Root.new()
+  local dd = r:add(fox.Dropdown.new{ x = 10, y = 580, w = 120, h = 30,
+    options = { "a", "b", "c" } })
+  r:mousepressed(15, 585, 1)          -- open
+  local pop = r.overlays[1].widget
+  check("popup flipped above trigger", pop.y < dd.y)
+  check("popup fits its full height", pop.h == 3 * 30)
+  r:closeOverlay()
+
+  -- Many options, fits neither side: height capped and scrollable.
+  local many = {}
+  for i = 1, 30 do many[i] = "opt" .. i end
+  local r2 = fox.Root.new()
+  r2:add(fox.Dropdown.new{ x = 10, y = 300, w = 120, h = 30,
+    options = many, selected = 1 })
+  r2:mousepressed(15, 305, 1)
+  local pop2 = r2.overlays[1].widget
+  check("popup height capped to gap", pop2.h < pop2.fullH)
+  check("popup scrollable", pop2:maxScroll() > 0)
+
+  -- Wheel over the popup scrolls it.
+  love_stub.setMouse(15, pop2.y + 10)
+  check("wheel scrolls popup", pop2:wheelmoved(0, -1) == true)
+  check("scroll advanced", pop2.scroll > 0)
+
+  local ok = pcall(function() pop2:update(0.016); pop2:draw() end)
+  check("draw scrolled popup no error", ok)
+  love_stub.setMouse(0, 0)
+end
+
 print(string.format("\n%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

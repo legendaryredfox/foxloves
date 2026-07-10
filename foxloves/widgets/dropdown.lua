@@ -30,24 +30,62 @@ local function openPopup(dropdown)
   local self = setmetatable({}, Popup)
   self.dropdown = dropdown
   self.x = dropdown.x
-  self.y = dropdown.y + dropdown.h
   self.w = dropdown.w
   self.rowH = dropdown.h
   self.theme = dropdown.theme
   self.hover = nil
+  self.scroll = 0
+
+  -- Fit the list below the trigger; if it would run off the bottom, flip above,
+  -- and if it fits neither side, cap the height to the larger gap and scroll.
+  local _, screenH = love.graphics.getDimensions()
+  local fullH = self.rowH * #dropdown.options
+  local below = screenH - (dropdown.y + dropdown.h)
+  local above = dropdown.y
+  if fullH <= below then
+    self.y, self.h = dropdown.y + dropdown.h, fullH
+  elseif fullH <= above then
+    self.y, self.h = dropdown.y - fullH, fullH
+  elseif below >= above then
+    self.y, self.h = dropdown.y + dropdown.h, below
+  else
+    self.y, self.h = dropdown.y - above, above
+  end
+  self.fullH = fullH
   return self
 end
 
+function Popup:maxScroll()
+  return math.max(0, self.fullH - self.h)
+end
+
+-- Row bounds in viewport space (accounts for scroll). Rows may fall outside
+-- [self.y, self.y + self.h]; callers clip/guard against that.
 function Popup:rowBounds(i)
-  return self.x, self.y + (i - 1) * self.rowH, self.w, self.rowH
+  return self.x, self.y + (i - 1) * self.rowH - self.scroll, self.w, self.rowH
+end
+
+-- True when viewport y is within the popup's visible band.
+function Popup:_inView(py)
+  return py >= self.y and py <= self.y + self.h
 end
 
 function Popup:update(dt)
   local mx, my = love.mouse.getPosition()
   self.hover = nil
+  if not self:_inView(my) then return end
   for i = 1, #self.dropdown.options do
-    if util.contains(mx, my, self:rowBounds(i)) then self.hover = i; break end
+    local _, ry = self:rowBounds(i)
+    if util.contains(mx, my, self.x, ry, self.w, self.rowH) then self.hover = i; break end
   end
+end
+
+function Popup:wheelmoved(dx, dy)
+  if dy == 0 or self:maxScroll() == 0 then return false end
+  local mx, my = love.mouse.getPosition()
+  if not (util.contains(mx, my, self.x, self.y, self.w, self.h)) then return false end
+  self.scroll = util.clamp(self.scroll - dy * self.rowH, 0, self:maxScroll())
+  return true
 end
 
 function Popup:draw()
@@ -56,33 +94,42 @@ function Popup:draw()
   local font = defaultTheme.getFont(t)
   love.graphics.setFont(font)
 
-  local totalH = self.rowH * #self.dropdown.options
   love.graphics.setColor(t.color.fg)
-  love.graphics.rectangle("fill", self.x, self.y, self.w, totalH)
+  love.graphics.rectangle("fill", self.x, self.y, self.w, self.h)
 
+  love.graphics.setScissor(self.x, self.y, self.w, self.h)
   for i, opt in ipairs(self.dropdown.options) do
     local rx, ry, rw, rh = self:rowBounds(i)
-    if i == self.hover then
-      love.graphics.setColor(t.color.accent)
-      love.graphics.rectangle("fill", rx, ry, rw, rh)
+    if ry + rh > self.y and ry < self.y + self.h then
+      if i == self.dropdown.selected then
+        love.graphics.setColor(t.color.accent)
+        love.graphics.rectangle("fill", rx, ry, rw, rh)
+      elseif i == self.hover then
+        love.graphics.setColor(t.color.hover)
+        love.graphics.rectangle("fill", rx, ry, rw, rh)
+      end
+      love.graphics.setColor(t.color.text)
+      love.graphics.print(opt, rx + t.padding, ry + (rh - font:getHeight()) / 2)
     end
-    love.graphics.setColor(t.color.text)
-    love.graphics.print(opt, rx + t.padding, ry + (rh - font:getHeight()) / 2)
   end
+  love.graphics.setScissor()
 
   love.graphics.setColor(t.color.border)
-  love.graphics.rectangle("line", self.x, self.y, self.w, totalH)
+  love.graphics.rectangle("line", self.x, self.y, self.w, self.h)
 
   love.graphics.setColor(r, g, b, a)
 end
 
 function Popup:mousepressed(px, py, btn)
   if btn ~= 1 then return false end
-  for i = 1, #self.dropdown.options do
-    if util.contains(px, py, self:rowBounds(i)) then
-      self.dropdown:_select(i)
-      if self.dropdown.root then self.dropdown.root:closeOverlay(self) end
-      return true
+  if self:_inView(py) then
+    for i = 1, #self.dropdown.options do
+      local _, ry = self:rowBounds(i)
+      if util.contains(px, py, self.x, ry, self.w, self.rowH) then
+        self.dropdown:_select(i)
+        if self.dropdown.root then self.dropdown.root:closeOverlay(self) end
+        return true
+      end
     end
   end
   -- Clicking the trigger again just closes (consume so it does not reopen).

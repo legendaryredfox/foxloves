@@ -13,6 +13,7 @@
 -- and then closes the modal. Esc also closes it (handled by Root).
 
 local defaultTheme = require("foxloves.theme")
+local util = require("foxloves.util")
 local Button = require("foxloves.widgets.button")
 
 local Modal = {}
@@ -39,7 +40,15 @@ function Modal.new(opts)
     }
     table.insert(self.buttons, btn)
   end
+  -- Default focus is the primary (rightmost) button, which Enter activates.
+  self.focusIndex = #self.buttons > 0 and #self.buttons or nil
   return self
+end
+
+-- Fire the button at index i (runs its onClick, which also closes the modal).
+function Modal:_activate(i)
+  local btn = self.buttons[i]
+  if btn and btn.onClick then btn.onClick(btn) end
 end
 
 -- Center the panel and lay the buttons along its bottom-right.
@@ -93,6 +102,13 @@ function Modal:draw()
   love.graphics.setColor(r, g, b, a)
 
   for _, btn in ipairs(self.buttons) do btn:draw() end
+
+  -- Focus ring on the trapped focus target.
+  local fb = self.focusIndex and self.buttons[self.focusIndex]
+  if fb then
+    util.focusRing(t, fb.x, fb.y, fb.w, fb.h)
+    love.graphics.setColor(r, g, b, a)
+  end
 end
 
 function Modal:mousepressed(px, py, btn)
@@ -106,7 +122,26 @@ function Modal:mousereleased(px, py, btn)
   for _, b in ipairs(self.buttons) do b:mousereleased(px, py, btn) end
 end
 
-function Modal:keypressed(key) return false end
+-- Focus is trapped inside the modal (Root routes all keys here while it is the
+-- top modal overlay). Tab/Shift-Tab and Left/Right cycle the buttons;
+-- Enter/Space activate the focused one (Enter defaults to the primary button).
+function Modal:keypressed(key)
+  local n = #self.buttons
+  if n == 0 then return false end
+  local cur = self.focusIndex or n
+  if key == "tab" then
+    local reverse = love.keyboard.isDown("lshift", "rshift")
+    self.focusIndex = reverse and ((cur - 2) % n + 1) or (cur % n + 1)
+    return true
+  elseif key == "left" then
+    self.focusIndex = (cur - 2) % n + 1; return true
+  elseif key == "right" then
+    self.focusIndex = cur % n + 1; return true
+  elseif key == "return" or key == "kpenter" or key == "space" then
+    self:_activate(self.focusIndex or n); return true
+  end
+  return false
+end
 function Modal:textinput(text) return false end
 
 return Modal

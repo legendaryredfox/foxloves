@@ -39,7 +39,37 @@ function ListBox.new(opts)
   self.pressY = 0
   self.lastY = 0
   self.hover = nil  -- row index under the cursor, or nil
+  self.focusable = true
   return self
+end
+
+-- Number of whole rows visible in the box (for PageUp/PageDown paging).
+function ListBox:visibleRows()
+  return math.max(1, math.floor(self.h / self.rowH))
+end
+
+-- Scroll so the selected row is fully within the viewport.
+function ListBox:_scrollToSelected()
+  if not self.selected then return end
+  local top = (self.selected - 1) * self.rowH
+  local bottom = top + self.rowH
+  if top < self.scroll then
+    self.scroll = top
+  elseif bottom > self.scroll + self.h then
+    self.scroll = bottom - self.h
+  end
+  self.scroll = util.clamp(self.scroll, 0, self:maxScroll())
+end
+
+-- Move selection to index i (clamped), scroll it into view, fire onChange.
+function ListBox:_select(i)
+  if #self.items == 0 then return end
+  i = util.clamp(i, 1, #self.items)
+  if i ~= self.selected then
+    self.selected = i
+    self:_scrollToSelected()
+    if self.onChange then self.onChange(i) end
+  end
 end
 
 function ListBox:contains(px, py)
@@ -112,6 +142,8 @@ function ListBox:draw()
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
 
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
+
   love.graphics.setColor(r, g, b, a)
 end
 
@@ -137,7 +169,30 @@ function ListBox:mousereleased(px, py, btn)
   return true
 end
 
-function ListBox:keypressed(key) return false end
+-- When focused: arrows/Home/End/Page move the selection (scrolling it into
+-- view); Enter re-confirms the current selection. First arrow with no
+-- selection lands on row 1.
+function ListBox:keypressed(key)
+  if not util.isFocused(self) or #self.items == 0 then return false end
+  local cur = self.selected or 1
+  if key == "up" then
+    self:_select(self.selected and cur - 1 or 1); return true
+  elseif key == "down" then
+    self:_select(self.selected and cur + 1 or 1); return true
+  elseif key == "home" then
+    self:_select(1); return true
+  elseif key == "end" then
+    self:_select(#self.items); return true
+  elseif key == "pageup" then
+    self:_select(cur - self:visibleRows()); return true
+  elseif key == "pagedown" then
+    self:_select(cur + self:visibleRows()); return true
+  elseif key == "return" or key == "kpenter" or key == "space" then
+    if self.selected and self.onChange then self.onChange(self.selected) end
+    return true
+  end
+  return false
+end
 function ListBox:textinput(text) return false end
 
 return ListBox
