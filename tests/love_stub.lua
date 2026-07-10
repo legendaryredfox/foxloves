@@ -3,9 +3,28 @@
 
 local stub = {}
 
-local fakeFont = {
+local fakeFont
+fakeFont = {
   getHeight = function() return 14 end,
   getWidth  = function(_, s) return #(s or "") * 7 end,
+  -- Naive word-wrap at 7px/char, honoring existing newlines. Returns the
+  -- widest line width and the list of lines, like love's Font:getWrap.
+  getWrap   = function(_, text, limit)
+    local lines, width = {}, 0
+    for para in (tostring(text) .. "\n"):gmatch("(.-)\n") do
+      local cur = ""
+      for word in para:gmatch("%S+") do
+        local trial = cur == "" and word or (cur .. " " .. word)
+        if #trial * 7 > limit and cur ~= "" then
+          lines[#lines + 1] = cur; width = math.max(width, #cur * 7); cur = word
+        else
+          cur = trial
+        end
+      end
+      lines[#lines + 1] = cur; width = math.max(width, #cur * 7)
+    end
+    return width, lines
+  end,
 }
 
 local mouse = { x = 0, y = 0, down = {} }
