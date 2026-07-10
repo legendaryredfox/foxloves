@@ -31,6 +31,7 @@ function Checkbox.new(opts)
   self.disabled = opts.disabled or false
   self.theme = opts.theme or defaultTheme
   self.pressed = false
+  self.hovered = false
   self.focusable = true
   return self
 end
@@ -57,6 +58,11 @@ end
 
 function Checkbox:update(dt) end
 
+-- Hover spans the box + label (event-driven, local coords; see Container).
+function Checkbox:mousemoved(px, py)
+  self.hovered = not self.disabled and self:contains(px, py)
+end
+
 function Checkbox:draw()
   local t = self.theme
   local r, g, b, a = love.graphics.getColor()
@@ -64,7 +70,10 @@ function Checkbox:draw()
   love.graphics.setFont(font)
 
   local box = self.size
-  love.graphics.setColor(self.disabled and t.color.disabled or t.color.fg)
+  local boxFill = t.color.fg
+  if self.disabled then boxFill = t.color.disabled
+  elseif self.hovered then boxFill = t.color.hover end
+  love.graphics.setColor(boxFill)
   love.graphics.rectangle("fill", self.x, self.y, box, box, t.radius, t.radius)
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, box, box, t.radius, t.radius)

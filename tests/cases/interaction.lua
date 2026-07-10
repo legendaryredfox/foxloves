@@ -133,11 +133,51 @@ do
   end
   local tabs = fox.Tabs.new{ x = 0, y = 0, w = 200, headerH = 30,
     tabs = { { label = "A", panel = fakePanel() }, { label = "B", panel = fakePanel() } } }
-  love_stub.setMouse(150, 15)  -- second header (x 100..200)
-  tabs:update(0.016)
+  tabs:mousemoved(150, 15)  -- second header (x 100..200)
   check("tabs hover second header", tabs.hoverTab == 2)
-  love_stub.setMouse(0, 500)
-  tabs:update(0.016)
+  tabs:mousemoved(0, 500)
   check("tabs hover cleared", tabs.hoverTab == nil)
-  love_stub.setMouse(0, 0)
+end
+
+do
+  h.section("Hover through container translation")
+  -- Regression: a Button inside a Panel must hover based on the on-screen rect,
+  -- not the panel-local coords. Root:mousemoved routes motion down through the
+  -- container, subtracting the content origin (like mousepressed).
+  local pad = fox.theme.padding
+  local r = fox.Root.new()
+  local panel = fox.Panel.new{ x = 100, y = 100, w = 200, h = 200 }  -- untitled
+  local btn = fox.Button.new{ x = 10, y = 10, w = 80, h = 30 }
+  panel:add(btn)
+  r:add(panel)
+  -- Content origin of an untitled panel is (x + pad, y + pad); button center on
+  -- screen is there + local (10,10) + half-extent.
+  local gx, gy = 100 + pad + 10 + 40, 100 + pad + 10 + 15
+  r:mousemoved(gx, gy, 0, 0)
+  check("button hovers via on-screen rect", btn.hovered == true)
+  -- The old bug lit hover at the button's *local* coords in screen space.
+  btn.hovered = false
+  r:mousemoved(10 + 40, 10 + 15, 0, 0)
+  check("no phantom hover at local coords", btn.hovered == false)
+
+  -- Checkbox and RadioGroup inside the same panel resolve hover the same way.
+  local cb = fox.Checkbox.new{ x = 10, y = 60, size = 20, label = "x" }
+  local rg = fox.RadioGroup.new{ x = 10, y = 100, options = { "a", "b" } }
+  panel:add(cb); panel:add(rg)
+  r:mousemoved(100 + pad + 10 + 5, 100 + pad + 60 + 5, 0, 0)
+  check("checkbox hovers via on-screen rect", cb.hovered == true)
+  local rx, ry, _, _ = rg:rowBounds(2)
+  r:mousemoved(100 + pad + rx + 2, 100 + pad + ry + 2, 0, 0)
+  check("radiogroup hovers row 2 via on-screen rect", rg.hover == 2)
+
+  -- The exact reported case: Stepper's -/+ child buttons and an IconButton in a
+  -- panel must hover from their on-screen rects (composites forward motion).
+  local st = fox.Stepper.new{ x = 10, y = 140, w = 100, h = 30, value = 3 }
+  local ib = fox.IconButton.new{ x = 120, y = 140, w = 30, h = 30 }
+  panel:add(st); panel:add(ib)
+  r:mousemoved(100 + pad + 10 + 5, 100 + pad + 140 + 5, 0, 0)  -- over minus
+  check("stepper minus hovers", st.minus.hovered == true and st.plus.hovered == false)
+  r:mousemoved(100 + pad + 120 + 5, 100 + pad + 140 + 5, 0, 0) -- over iconbutton
+  check("iconbutton hovers via on-screen rect", ib.hovered == true)
+  check("stepper minus unhovered off it", st.minus.hovered == false)
 end

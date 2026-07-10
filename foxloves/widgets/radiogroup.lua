@@ -63,9 +63,11 @@ function RadioGroup:rowAt(px, py)
   return nil
 end
 
-function RadioGroup:update(dt)
-  local mx, my = love.mouse.getPosition()
-  self.hover = self.disabled and nil or self:rowAt(mx, my)
+function RadioGroup:update(dt) end
+
+-- Hover is event-driven; coordinates arrive in local space (see Container).
+function RadioGroup:mousemoved(px, py)
+  self.hover = self.disabled and nil or self:rowAt(px, py)
 end
 
 function RadioGroup:draw()

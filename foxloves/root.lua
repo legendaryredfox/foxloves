@@ -157,6 +157,18 @@ function Root:mousepressed(px, py, btn)
   return false
 end
 
+-- Pointer motion is informational (non-consuming): every base widget and
+-- overlay that opts in gets it so hover state stays event-driven in each
+-- widget's own coordinate space. Containers translate before forwarding.
+function Root:mousemoved(px, py, dx, dy)
+  for _, w in ipairs(self.base) do
+    if w.mousemoved then w:mousemoved(px, py, dx, dy) end
+  end
+  for _, o in ipairs(self.overlays) do
+    if o.widget.mousemoved then o.widget:mousemoved(px, py, dx, dy) end
+  end
+end
+
 -- Scroll wheel is an optional handler: overlays first (top-down), then base,
 -- first-consume-wins. Widgets that don't scroll simply omit :wheelmoved.
 function Root:wheelmoved(dx, dy)

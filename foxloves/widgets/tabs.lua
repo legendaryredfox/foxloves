@@ -57,13 +57,19 @@ function Tabs:current()
 end
 
 function Tabs:update(dt)
-  local mx, my = love.mouse.getPosition()
-  self.hoverTab = nil
-  for i = 1, #self.tabs do
-    if util.contains(mx, my, self:tabBounds(i)) then self.hoverTab = i; break end
-  end
   local panel = self:current()
   if panel then panel:update(dt) end
+end
+
+-- Header hover is event-driven; motion is forwarded to the active panel so its
+-- children (e.g. buttons) hover too. Coordinates are already local to the Tabs.
+function Tabs:mousemoved(px, py, dx, dy)
+  self.hoverTab = nil
+  for i = 1, #self.tabs do
+    if util.contains(px, py, self:tabBounds(i)) then self.hoverTab = i; break end
+  end
+  local panel = self:current()
+  if panel and panel.mousemoved then panel:mousemoved(px, py, dx, dy) end
 end
 
 function Tabs:draw()

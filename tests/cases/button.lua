@@ -1,5 +1,5 @@
 local h = require("tests.harness")
-local fox, check, love_stub = h.fox, h.check, h.love_stub
+local fox, check = h.fox, h.check
 
 do
   h.section("Button")
@@ -25,10 +25,10 @@ do
   -- right button ignored
   check("right button ignored", b:mousepressed(20, 20, 2) == false)
 
-  -- hover via update
-  love_stub.setMouse(20, 20); b:update(0.016)
+  -- hover is event-driven via mousemoved (local coordinates)
+  b:mousemoved(20, 20)
   check("hover true over widget", b.hovered == true)
-  love_stub.setMouse(300, 300); b:update(0.016)
+  b:mousemoved(300, 300)
   check("hover false off widget", b.hovered == false)
 
   -- disabled swallows nothing
@@ -37,6 +37,8 @@ do
   check("disabled press ignored", db:mousepressed(10, 10, 1) == false)
   db:mousereleased(10, 10, 1)
   check("disabled no click", clicks == 1)
+  db:mousemoved(10, 10)
+  check("disabled never hovers", db.hovered == false)
 
   -- draw smoke test (must not error)
   local okDraw = pcall(function() b:draw() end)

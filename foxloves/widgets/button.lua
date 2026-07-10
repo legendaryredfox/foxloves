@@ -39,13 +39,12 @@ function Button:contains(px, py)
      and py >= self.y and py <= self.y + self.h
 end
 
-function Button:update(dt)
-  if self.disabled then
-    self.hovered = false
-    return
-  end
-  local mx, my = love.mouse.getPosition()
-  self.hovered = self:contains(mx, my)
+function Button:update(dt) end
+
+-- Hover is event-driven: coordinates arrive already in this widget's own space
+-- (a Container translates before forwarding), so nested buttons hover correctly.
+function Button:mousemoved(px, py)
+  self.hovered = not self.disabled and self:contains(px, py)
 end
 
 function Button:draw()

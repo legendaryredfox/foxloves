@@ -1,5 +1,5 @@
 local h = require("tests.harness")
-local fox, check, love_stub = h.fox, h.check, h.love_stub
+local fox, check = h.fox, h.check
 
 do
   h.section("IconButton")
@@ -15,8 +15,10 @@ do
   check("onClick fired", clicks == 1)
   ib:mousepressed(5, 5, 1); ib:mousereleased(900, 900, 1)
   check("release outside no click", clicks == 1)
-  love_stub.setMouse(5, 5); ib:update(0.016)
+  ib:mousemoved(5, 5)
   check("hover true over widget", ib.hovered == true)
+  ib:mousemoved(900, 900)
+  check("hover false off widget", ib.hovered == false)
   local ok = pcall(function() ib:draw() end)
   check("draw with image no error", ok)
   local okNoImg = pcall(function() fox.IconButton.new{ w = 32, h = 32 }:draw() end)

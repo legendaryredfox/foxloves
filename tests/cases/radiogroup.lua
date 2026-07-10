@@ -1,5 +1,5 @@
 local h = require("tests.harness")
-local fox, check, love_stub = h.fox, h.check, h.love_stub
+local fox, check = h.fox, h.check
 
 do
   h.section("RadioGroup")
@@ -41,12 +41,10 @@ do
   rg:keypressed("home")
   check("home selects first", rg.selected == 1)
 
-  -- Hover tracks the row under the cursor.
+  -- Hover tracks the row under the cursor (event-driven, local coordinates).
   local rx, ry = rg:rowBounds(2)
-  love_stub.setMouse(rx + 2, ry + 2)
-  rg:update(0.016)
+  rg:mousemoved(rx + 2, ry + 2)
   check("hover tracks row 2", rg.hover == 2)
-  love_stub.setMouse(999, 999)
-  rg:update(0.016)
+  rg:mousemoved(999, 999)
   check("hover cleared off group", rg.hover == nil)
 end

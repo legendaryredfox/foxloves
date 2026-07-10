@@ -122,6 +122,12 @@ function Modal:mousereleased(px, py, btn)
   for _, b in ipairs(self.buttons) do b:mousereleased(px, py, btn) end
 end
 
+-- Buttons sit in screen space (the modal is an overlay), so motion passes
+-- through unchanged, like mousepressed.
+function Modal:mousemoved(px, py, dx, dy)
+  for _, b in ipairs(self.buttons) do b:mousemoved(px, py, dx, dy) end
+end
+
 -- Focus is trapped inside the modal (Root routes all keys here while it is the
 -- top modal overlay). Tab/Shift-Tab and Left/Right cycle the buttons;
 -- Enter/Space activate the focused one (Enter defaults to the primary button).

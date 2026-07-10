@@ -118,6 +118,13 @@ function Stepper:update(dt)
   end
 end
 
+-- Forward pointer motion to the child buttons so they track hover. The children
+-- share the Stepper's coordinate space, so coordinates pass through unchanged.
+function Stepper:mousemoved(px, py)
+  self.minus:mousemoved(px, py)
+  self.plus:mousemoved(px, py)
+end
+
 function Stepper:draw()
   local t = self.theme
   local r, g, b, a = love.graphics.getColor()

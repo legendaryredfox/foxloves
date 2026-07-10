@@ -38,13 +38,11 @@ function IconButton:contains(px, py)
   return util.contains(px, py, self.x, self.y, self.w, self.h)
 end
 
-function IconButton:update(dt)
-  if self.disabled then
-    self.hovered = false
-    return
-  end
-  local mx, my = love.mouse.getPosition()
-  self.hovered = self:contains(mx, my)
+function IconButton:update(dt) end
+
+-- Hover is event-driven; see Button:mousemoved. Coordinates arrive local.
+function IconButton:mousemoved(px, py)
+  self.hovered = not self.disabled and self:contains(px, py)
 end
 
 function IconButton:draw()

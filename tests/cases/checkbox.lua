@@ -16,9 +16,16 @@ do
   -- press inside, release outside: no toggle
   c:mousepressed(5, 5, 1); c:mousereleased(900, 900, 1)
   check("release outside no toggle", c.checked == false)
+  -- hover (event-driven, spans box + label; local coordinates)
+  c:mousemoved(5, 5)
+  check("hover true over box", c.hovered == true)
+  c:mousemoved(900, 900)
+  check("hover false off widget", c.hovered == false)
   -- disabled ignores
   local dc = fox.Checkbox.new{ disabled = true }
   check("disabled press ignored", dc:mousepressed(5, 5, 1) == false)
+  dc:mousemoved(5, 5)
+  check("disabled never hovers", dc.hovered == false)
   local ok = pcall(function() c.checked = true; c:draw() end)
   check("draw no error", ok)
 end

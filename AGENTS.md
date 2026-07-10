@@ -48,7 +48,14 @@ widget:mousereleased(x, y, btn)
 widget:keypressed(key)
 widget:textinput(text)
 widget:wheelmoved(dx, dy)         -- optional; scrollable widgets only
+widget:mousemoved(x, y, dx, dy)   -- optional; event-driven hover (local coords)
 ```
+
+`mousemoved` receives coordinates already in the widget's own space — a
+`Container`/`Panel` subtracts its content origin before forwarding, so nested
+widgets hover correctly. Prefer it over polling `love.mouse.getPosition()` in
+`update` (which yields screen coords and mis-fires inside a translated
+container). Composites (Stepper, Modal, Tabs) forward motion to their children.
 
 Optional additive hooks: `widget.focusable = true` (opt into Tab focus, draw a
 ring via `fox.util.focusRing` when `fox.util.isFocused(self)`), and

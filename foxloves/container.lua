@@ -69,6 +69,16 @@ function Container:keypressed(key)
   return false
 end
 
+-- Pointer motion, translated into child-local space (mirrors mousepressed) so
+-- nested widgets compute hover against the coordinates they were placed in.
+function Container:mousemoved(px, py, dx, dy)
+  local ox, oy = self.originFn()
+  local lx, ly = px - ox, py - oy
+  for _, c in ipairs(self.children) do
+    if c.mousemoved then c:mousemoved(lx, ly, dx, dy) end
+  end
+end
+
 -- Wheel carries no coordinates; children self-check hover. Optional per child.
 function Container:wheelmoved(dx, dy)
   for _, c in ipairs(self.children) do
