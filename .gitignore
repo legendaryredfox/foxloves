@@ -1,6 +1,9 @@
 # Claude Code / AI tooling
 .claude/
 
+# Internal design docs / specs
+docs/
+
 # LÖVE / distributables
 *.love
 builds/
