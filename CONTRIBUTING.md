@@ -15,6 +15,7 @@ widget:mousepressed(x, y, btn)    -- return true if consumed
 widget:mousereleased(x, y, btn)
 widget:keypressed(key)
 widget:textinput(text)
+widget:wheelmoved(dx, dy)         -- OPTIONAL; only if the widget scrolls
 ```
 
 Rules:
@@ -27,9 +28,19 @@ Rules:
    optional.
 5. Document the public API with a short comment block above `new`.
 
+Optional, additive hooks (present only where they make sense):
+
+- `widget.focusable = true` opts a widget into Tab traversal. Draw a ring with
+  `fox.util.focusRing(theme, x, y, w, h)` when `fox.util.isFocused(self)`, and
+  gate keyboard activation on it.
+- `widget:setFocused(bool)` lets `fox.Root` sync a widget's own focus flag
+  (Textbox uses it); Root calls it when focus moves in or out.
+- `widget:wheelmoved(dx, dy)` — the wheel carries no coordinates, so a widget
+  self-checks `love.mouse.getPosition()` against its bounds before scrolling.
+
 Overlays and containers are coordinated by `fox.Root`; see [USAGE.md](USAGE.md).
-The per-widget contract above is stable — new widgets must fit it rather than
-add new lifecycle methods.
+The six core lifecycle methods are stable — new widgets must fit them; the
+optional hooks above are the only sanctioned additions.
 
 ## Coding conventions
 
@@ -49,10 +60,14 @@ The suite mocks the LÖVE API and runs headless:
 luajit tests/run.lua
 ```
 
-- Add a test block per new widget in `tests/run.lua`: construct, mutate state,
-  assert callbacks fire, assert input handlers consume/ignore correctly, and a
-  draw smoke test (no error).
-- If a widget uses a LÖVE call not yet stubbed, add a no-op to
+- Tests live one file per widget/topic under `tests/cases/`, each requiring
+  `tests/harness.lua` (which installs the stub and exposes `check`) and running
+  its assertions at require time. Add a new file there and list its name in the
+  `cases` table in `tests/run.lua`.
+- A case should construct the widget, mutate state, assert callbacks fire, assert
+  input handlers consume/ignore correctly, and include a draw smoke test (no
+  error).
+- If a widget uses a LÖVE call not yet stubbed, add a no-op (or minimal fake) to
   `tests/love_stub.lua`.
 - Update `main.lua` to show any new widget so it can be exercised with `love .`.
 

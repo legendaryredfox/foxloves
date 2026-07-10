@@ -87,9 +87,19 @@ Every widget follows the same contract so the host can drive them in a loop:
 - `widget:mousereleased(x, y, btn)`
 - `widget:keypressed(key)`
 - `widget:textinput(text)`
+- `widget:wheelmoved(dx, dy)` — *optional*; scrollable widgets (ListBox, Slider,
+  Dropdown popup) implement it. Forward `love.wheelmoved` to your Root or list.
 
 Input handlers return `true` when they consume the event, so the caller can
 stop propagation (see the `break` / `return` in the callbacks above).
+
+### Keyboard focus
+
+Interactive widgets set `widget.focusable = true`. When driven by a `fox.Root`,
+**Tab** / **Shift-Tab** move focus between focusable widgets, a focus ring is
+drawn on the focused one, and **Space/Enter** (or arrows, per widget) activate it
+without the mouse. Focus is also set by clicking. See
+[Managing widgets with fox.Root](#managing-widgets-with-foxroot).
 
 ## Button
 
@@ -104,7 +114,8 @@ fox.Button.new{
 ```
 
 States: normal, hovered, pressed, disabled. Fires `onClick` on mouse release
-inside bounds when the press also began inside bounds.
+inside bounds when the press also began inside bounds. When focused (via Tab in a
+Root), **Space/Enter** activate it.
 
 ## Textbox
 
@@ -119,10 +130,11 @@ fox.Textbox.new{
 }
 ```
 
-Single-line input with a blinking caret. Click to focus, click elsewhere to
-blur. Supports text entry, backspace, and caret movement with left/right.
-Fires `onChange(newValue)` on every edit. Read the current text via
-`textbox.value`.
+Single-line input with a blinking caret. Click to focus (the caret lands at the
+clicked character), click elsewhere to blur. Supports text entry, backspace,
+caret movement with left/right, and **Home/End**. Text longer than the box
+scrolls horizontally and is clipped so the caret stays visible. Fires
+`onChange(newValue)` on every edit. Read the current text via `textbox.value`.
 
 Note: the caret is byte-indexed, so non-ASCII (multibyte UTF-8) input is not
 yet handled correctly.
@@ -172,7 +184,8 @@ fox.Checkbox.new{
 ```
 
 Boolean toggle with a check mark and optional label. Toggles on release inside
-when the press also began inside. Fires `onChange(checked)`.
+when the press also began inside, or on **Space/Enter** when focused. Fires
+`onChange(checked)`.
 
 ## Toggle
 
@@ -183,7 +196,8 @@ fox.Toggle.new{
 }
 ```
 
-Sliding on/off switch. `update(dt)` animates the knob. Fires `onChange(on)`.
+Sliding on/off switch. `update(dt)` animates the knob. Toggles on click or, when
+focused, on **Space/Enter**. Fires `onChange(on)`.
 
 ## RadioGroup
 
@@ -195,7 +209,9 @@ fox.RadioGroup.new{
 ```
 
 One widget owning a vertical stack of mutually exclusive options. Selecting a
-row clears the others. Read/write `group.selected`. Fires `onChange(index)`.
+row clears the others; the hovered row is highlighted. When focused, **Up/Left**
+and **Down/Right** move the selection (wrapping around), **Home/End** jump to the
+first/last. Read/write `group.selected`. Fires `onChange(index)`.
 
 ## Slider
 
@@ -208,8 +224,9 @@ fox.Slider.new{
 
 Drag the handle to pick a value. Pressing the track jumps the value to the
 cursor; while dragging, `update` follows the cursor as long as the left button
-is held (no `mousemoved` callback is needed). Snaps to `step` when set. Fires
-`onChange(value)`.
+is held (no `mousemoved` callback is needed). Snaps to `step` when set. When
+focused, **arrows** nudge by one step and **Home/End** jump to the ends; the
+scroll wheel over the track also nudges. Fires `onChange(value)`.
 
 ## Stepper
 
@@ -220,8 +237,11 @@ fox.Stepper.new{
 }
 ```
 
-Numeric value with − / + buttons and a printed readout (not keyboard-editable).
-Clamps to `min`/`max` when set. Fires `onChange(value)`.
+Numeric value with − / + buttons and a printed readout (the readout is not
+text-editable). Clamps to `min`/`max` when set. Holding a button auto-repeats
+after a short delay; when focused, **Up/Right** and **Down/Left** step the value.
+Call `stepper:setDisabled(bool)` to enable/disable at runtime (it propagates to
+the − / + buttons). Fires `onChange(value)`.
 
 ## IconButton
 
@@ -233,7 +253,7 @@ fox.IconButton.new{
 ```
 
 A square button drawing `image` (scaled to fit, centered) instead of a label.
-Same states and click behavior as Button.
+Same states, click, and **Space/Enter** activation as Button.
 
 ## Managing widgets with fox.Root
 
@@ -252,6 +272,7 @@ function love.update(dt)  ui:update(dt) end
 function love.draw()      ui:draw() end
 function love.mousepressed(x, y, b)  ui:mousepressed(x, y, b) end
 function love.mousereleased(x, y, b) ui:mousereleased(x, y, b) end
+function love.wheelmoved(dx, dy)     ui:wheelmoved(dx, dy) end
 function love.textinput(t)           ui:textinput(t) end
 function love.keypressed(key)
   if ui:keypressed(key) then return end
@@ -261,10 +282,15 @@ end
 
 - `ui:add(widget)` / `ui:remove(widget)` — manage the base layer.
 - `ui:openOverlay(widget, { modal = bool })` / `ui:closeOverlay(widget?)` —
-  push/pop overlays. A modal overlay traps all input; a non-modal one is
-  dismissed when a press lands outside it. `Esc` closes the top overlay.
-- Widgets added to a Root get a `widget.root` backref (Dropdown uses it to open
-  its popup).
+  push/pop overlays. A modal overlay traps all input (including keys, so a
+  background-focused widget never sees them); a non-modal one is dismissed when a
+  press lands outside it. `Esc` closes the top overlay.
+- `ui:wheelmoved(dx, dy)` routes the scroll wheel to overlays then the base
+  layer (first to consume wins).
+- **Tab** / **Shift-Tab** move keyboard focus between focusable base widgets;
+  `ui:setFocus(widget)` sets it programmatically.
+- Widgets added to a Root get a `widget.root` backref (used for the focus ring,
+  keyboard activation, and — for Dropdown — opening its popup).
 
 ## Panel
 
@@ -292,7 +318,9 @@ ui:openOverlay(dlg, { modal = true })
 
 Blocking dialog: dims the screen, centers a panel with title/message/buttons,
 and traps input. Each button runs its `onClick` then closes the dialog; `Esc`
-also closes it.
+also closes it. Focus is trapped over the buttons: **Tab/Shift-Tab** (or
+**Left/Right**) cycle them, **Enter** activates the default (primary, rightmost)
+button, and **Space** the focused one.
 
 ## Dropdown
 
@@ -303,18 +331,25 @@ fox.Dropdown.new{
 }
 ```
 
-Shows the current option and a caret; clicking opens a popup list below it.
-Selecting a row fires `onChange(index)` and closes; clicking outside dismisses.
-Must be added to a `fox.Root`. `dropdown.selected` is readable/writable.
+Shows the current option and a caret; clicking (or **Space/Enter/Down** when
+focused) opens a popup list. The popup anchors below the trigger, flips above
+when it would run off the bottom of the screen, and caps its height with a
+scroll wheel when it fits neither side; the current selection is highlighted
+distinctly from the hovered row. Selecting a row fires `onChange(index)` and
+closes; clicking outside dismisses. Must be added to a `fox.Root`.
+`dropdown.selected` is readable/writable.
 
 ## Tooltip
 
 ```lua
-fox.Tooltip.new{ target = { x, y, w, h }, text = "hint", delay = 0.6, theme }
+fox.Tooltip.new{ target = { x, y, w, h }, text = "hint", delay = 0.6,
+  maxWidth = nil, theme }
 ```
 
 Shows a floating box near the cursor after hovering `target` for `delay`
-seconds. Non-blocking. Add it after the widgets it annotates so it draws on top.
+seconds; it fades in and out and is clamped to stay on screen. Set `maxWidth` to
+wrap long text over multiple lines. Non-blocking. Add it after the widgets it
+annotates so it draws on top.
 
 ## Tabs
 
@@ -328,7 +363,10 @@ fox.Tabs.new{
 
 Header row of clickable labels; the selected tab's `panel` (usually a
 `fox.Panel`) is drawn below and receives input. Position each panel below the
-header yourself. Switching fires `onChange(index)`.
+header yourself. Hovered headers are highlighted; when focused, **Left/Right**
+switch tabs and **Home/End** jump to the first/last (the active panel gets first
+refusal on keys, so a focused child keeps its arrows). Switching fires
+`onChange(index)`.
 
 ## ListBox
 
@@ -340,7 +378,10 @@ fox.ListBox.new{
 ```
 
 Scrollable, selectable rows, clipped to the box. Click a row to select it; drag
-inside the box to scroll. Fires `onChange(index)`. `listbox.selected` is
+inside the box or use the scroll wheel to scroll; the hovered row is highlighted.
+When focused, **Up/Down** move the selection (scrolling it into view),
+**Home/End** jump to the ends, **PageUp/PageDown** page by the visible row count,
+and **Enter** re-confirms. Fires `onChange(index)`. `listbox.selected` is
 readable.
 
 ## Theming
@@ -351,7 +392,11 @@ per-widget by passing `theme` in the options. Minimum keys:
 
 ```lua
 {
-  color = { bg, fg, accent, border, disabled, text, textMuted },
+  color = {
+    bg, fg, accent, border, disabled, text, textMuted,
+    hover,   -- fill for hovered controls / rows (distinct from fg)
+    focus,   -- keyboard focus ring (defaults to accent if omitted)
+  },
   radius = 4,
   padding = 8,
   font = <love Font>,   -- optional; defaults to current font
@@ -376,7 +421,9 @@ The suite mocks the LÖVE API and runs headless — no window required:
 luajit tests/run.lua
 ```
 
-Exit code is non-zero if any check fails, so it drops straight into CI.
+Exit code is non-zero if any check fails, so it drops straight into CI. The
+suite is split into one file per widget/topic under `tests/cases/`, sharing
+`tests/harness.lua`; `tests/run.lua` lists and runs them.
 
 ## Future ideas
 

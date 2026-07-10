@@ -47,7 +47,13 @@ widget:mousepressed(x, y, btn)    -- input hooks (return true if consumed)
 widget:mousereleased(x, y, btn)
 widget:keypressed(key)
 widget:textinput(text)
+widget:wheelmoved(dx, dy)         -- optional; scrollable widgets only
 ```
+
+Optional additive hooks: `widget.focusable = true` (opt into Tab focus, draw a
+ring via `fox.util.focusRing` when `fox.util.isFocused(self)`), and
+`widget:setFocused(bool)` (Root syncs a widget's own focus flag). Keyboard
+activation (Space/Enter, arrows) is gated on focus. See CONTRIBUTING.md.
 
 Rules:
 
@@ -63,12 +69,15 @@ Rules:
 
 ```lua
 {
-  color = { bg, fg, accent, border, disabled, text, textMuted },
+  color = { bg, fg, accent, border, hover, focus, disabled, text, textMuted },
   radius = 4,
   padding = 8,
   font = <love Font>,
 }
 ```
+
+`hover` fills hovered controls/rows; `focus` is the keyboard focus ring (falls
+back to `accent`).
 
 ## First components
 
