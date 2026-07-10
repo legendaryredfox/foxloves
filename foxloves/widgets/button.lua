@@ -12,6 +12,7 @@
 -- inside bounds. Input handlers return true when they consume the event.
 
 local defaultTheme = require("foxloves.theme")
+local util = require("foxloves.util")
 
 local Button = {}
 Button.__index = Button
@@ -29,6 +30,7 @@ function Button.new(opts)
   self.theme = opts.theme or defaultTheme
   self.hovered = false
   self.pressed = false
+  self.focusable = true
   return self
 end
 
@@ -56,7 +58,7 @@ function Button:draw()
   elseif self.pressed and self.hovered then
     fill = t.color.accent
   elseif self.hovered then
-    fill = t.color.fg
+    fill = t.color.hover
   else
     fill = t.color.bg
   end
@@ -65,6 +67,8 @@ function Button:draw()
   love.graphics.rectangle("fill", self.x, self.y, self.w, self.h, t.radius, t.radius)
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
+
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
 
   local font = defaultTheme.getFont(t)
   love.graphics.setFont(font)
@@ -96,8 +100,15 @@ function Button:mousereleased(px, py, btn)
   return false
 end
 
--- No keyboard interaction for a plain button.
-function Button:keypressed(key) return false end
+-- When focused, Space/Enter activate the button like a click.
+function Button:keypressed(key)
+  if self.disabled or not util.isFocused(self) then return false end
+  if key == "space" or key == "return" or key == "kpenter" then
+    if self.onClick then self.onClick(self) end
+    return true
+  end
+  return false
+end
 function Button:textinput(text) return false end
 
 return Button

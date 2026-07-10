@@ -33,7 +33,13 @@ function Toggle.new(opts)
   self.theme = opts.theme or defaultTheme
   self.pressed = false
   self.anim = self.on and 1 or 0  -- 0 = off end, 1 = on end
+  self.focusable = true
   return self
+end
+
+function Toggle:_toggle()
+  self.on = not self.on
+  if self.onChange then self.onChange(self.on) end
 end
 
 function Toggle:contains(px, py)
@@ -75,6 +81,8 @@ function Toggle:draw()
   love.graphics.setColor(self.disabled and t.color.textMuted or t.color.text)
   love.graphics.circle("fill", knobX, self.y + radius, knobR)
 
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
+
   love.graphics.setColor(r, g, b, a)
 end
 
@@ -93,14 +101,20 @@ function Toggle:mousereleased(px, py, btn)
   self.pressed = false
   if self.disabled or not wasPressed then return false end
   if self:contains(px, py) then
-    self.on = not self.on
-    if self.onChange then self.onChange(self.on) end
+    self:_toggle()
     return true
   end
   return false
 end
 
-function Toggle:keypressed() return false end
+function Toggle:keypressed(key)
+  if self.disabled or not util.isFocused(self) then return false end
+  if key == "space" or key == "return" or key == "kpenter" then
+    self:_toggle()
+    return true
+  end
+  return false
+end
 function Toggle:textinput() return false end
 
 return Toggle

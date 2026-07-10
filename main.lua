@@ -91,6 +91,7 @@ end
 
 function love.mousepressed(x, y, b)  ui:mousepressed(x, y, b) end
 function love.mousereleased(x, y, b) ui:mousereleased(x, y, b) end
+function love.wheelmoved(dx, dy)     ui:wheelmoved(dx, dy) end
 function love.textinput(t)           ui:textinput(t) end
 
 function love.keypressed(key)

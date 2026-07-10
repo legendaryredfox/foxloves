@@ -37,11 +37,53 @@ function Root:remove(widget)
   for i = #self.base, 1, -1 do
     if self.base[i] == widget then
       table.remove(self.base, i)
-      if self.focused == widget then self.focused = nil end
+      if self.focused == widget then self:setFocus(nil) end
       return true
     end
   end
   return false
+end
+
+-- ------------------------------------------------------------ keyboard focus
+
+-- Move keyboard focus to widget (or nil). Widgets that track their own focus
+-- state (e.g. Textbox) expose setFocused(bool) and are synced here.
+function Root:setFocus(widget)
+  if self.focused == widget then return end
+  if self.focused and self.focused.setFocused then self.focused:setFocused(false) end
+  self.focused = widget
+  if widget and widget.setFocused then widget:setFocused(true) end
+end
+
+-- Base widgets that opt into keyboard focus (widget.focusable == true).
+function Root:_focusables()
+  local list = {}
+  for _, w in ipairs(self.base) do
+    if w.focusable then list[#list + 1] = w end
+  end
+  return list
+end
+
+-- Advance focus to the next (or previous) focusable base widget. Returns true
+-- when it moved focus, false when there is nothing focusable to move to.
+function Root:_cycleFocus(reverse)
+  local list = self:_focusables()
+  local n = #list
+  if n == 0 then return false end
+  local idx = 0
+  for i, w in ipairs(list) do
+    if w == self.focused then idx = i; break end
+  end
+  local nextIdx
+  if idx == 0 then
+    nextIdx = reverse and n or 1
+  elseif reverse then
+    nextIdx = (idx - 2) % n + 1
+  else
+    nextIdx = idx % n + 1
+  end
+  self:setFocus(list[nextIdx])
+  return true
 end
 
 -- ----------------------------------------------------------------- overlays
@@ -57,13 +99,13 @@ end
 function Root:closeOverlay(widget)
   if widget == nil then
     local top = table.remove(self.overlays)
-    if top and self.focused == top.widget then self.focused = nil end
+    if top and self.focused == top.widget then self:setFocus(nil) end
     return top ~= nil
   end
   for i = #self.overlays, 1, -1 do
     if self.overlays[i].widget == widget then
       table.remove(self.overlays, i)
-      if self.focused == widget then self.focused = nil end
+      if self.focused == widget then self:setFocus(nil) end
       return true
     end
   end
@@ -94,7 +136,7 @@ function Root:mousepressed(px, py, btn)
   for i = #self.overlays, 1, -1 do
     local o = self.overlays[i]
     if o.widget:mousepressed(px, py, btn) then
-      self.focused = o.widget
+      self:setFocus(o.widget)
       return true
     end
     if o.modal then
@@ -107,11 +149,25 @@ function Root:mousepressed(px, py, btn)
   -- Base layer, first-consume-wins (Tier 1 semantics).
   for _, w in ipairs(self.base) do
     if w:mousepressed(px, py, btn) then
-      self.focused = w
+      self:setFocus(w)
       return true
     end
   end
-  self.focused = nil
+  self:setFocus(nil)
+  return false
+end
+
+-- Scroll wheel is an optional handler: overlays first (top-down), then base,
+-- first-consume-wins. Widgets that don't scroll simply omit :wheelmoved.
+function Root:wheelmoved(dx, dy)
+  for i = #self.overlays, 1, -1 do
+    local o = self.overlays[i]
+    if o.widget.wheelmoved and o.widget:wheelmoved(dx, dy) then return true end
+    if o.modal then return true end
+  end
+  for _, w in ipairs(self.base) do
+    if w.wheelmoved and w:wheelmoved(dx, dy) then return true end
+  end
   return false
 end
 
@@ -125,6 +181,15 @@ function Root:keypressed(key)
   if key == "escape" and #self.overlays > 0 then
     self:closeOverlay()
     return true
+  end
+  -- Tab cycles keyboard focus among focusable base widgets (Shift-Tab reverses).
+  -- Only when no modal overlay is trapping input.
+  if key == "tab" then
+    local top = self:topOverlay()
+    if not (top and top.modal) then
+      local reverse = love.keyboard.isDown("lshift", "rshift")
+      if self:_cycleFocus(reverse) then return true end
+    end
   end
   if self.focused and self.focused:keypressed(key) then return true end
 

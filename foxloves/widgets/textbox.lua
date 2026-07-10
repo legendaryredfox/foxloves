@@ -13,6 +13,7 @@
 -- and caret movement with left/right. Fires onChange(newValue) on any edit.
 
 local defaultTheme = require("foxloves.theme")
+local util = require("foxloves.util")
 
 local BLINK_PERIOD = 0.5
 
@@ -33,9 +34,46 @@ function Textbox.new(opts)
   self.theme = opts.theme or defaultTheme
   self.focused = false
   self.caret = #self.value      -- caret position, in bytes (ASCII-safe)
+  self.scrollX = 0              -- horizontal pixel offset to keep caret in view
   self.blink = 0
   self.blinkOn = true
+  self.focusable = true
   return self
+end
+
+-- Root calls this when keyboard focus moves here (Tab) or away.
+function Textbox:setFocused(on)
+  self.focused = on
+  if on then self.blink, self.blinkOn = 0, true else self.blinkOn = false end
+end
+
+-- Pixel width of the value up to a caret index, in the current font.
+function Textbox:_textWidth(caret)
+  local font = defaultTheme.getFont(self.theme)
+  return font:getWidth(self.value:sub(1, caret))
+end
+
+-- Nearest caret index to a viewport x (accounts for padding + scroll).
+function Textbox:_caretFromX(px)
+  local rel = px - (self.x + self.theme.padding) + self.scrollX
+  if rel <= 0 then return 0 end
+  for i = 1, #self.value do
+    local mid = (self:_textWidth(i - 1) + self:_textWidth(i)) / 2
+    if rel < mid then return i - 1 end
+  end
+  return #self.value
+end
+
+-- Keep the caret inside the visible inner box by adjusting scrollX.
+function Textbox:_ensureCaretVisible()
+  local viewW = self.w - self.theme.padding * 2
+  local caretPx = self:_textWidth(self.caret)
+  if caretPx - self.scrollX > viewW then
+    self.scrollX = caretPx - viewW
+  elseif caretPx - self.scrollX < 0 then
+    self.scrollX = caretPx
+  end
+  if self.scrollX < 0 then self.scrollX = 0 end
 end
 
 function Textbox:contains(px, py)
@@ -68,21 +106,25 @@ function Textbox:draw()
 
   local pad = t.padding
   local textY = self.y + (self.h - font:getHeight()) / 2
+  -- Clip text/caret to the inner box so long content and scroll never overflow.
+  local innerX, innerW = self.x + pad, self.w - pad * 2
+  love.graphics.setScissor(innerX, self.y, innerW, self.h)
 
   if self.value == "" and not self.focused then
     love.graphics.setColor(t.color.textMuted)
-    love.graphics.print(self.placeholder, self.x + pad, textY)
+    love.graphics.print(self.placeholder, innerX, textY)
   else
     love.graphics.setColor(t.color.text)
-    love.graphics.print(self.value, self.x + pad, textY)
+    love.graphics.print(self.value, innerX - self.scrollX, textY)
   end
 
   if self.focused and self.blinkOn then
-    local caretX = self.x + pad + font:getWidth(self.value:sub(1, self.caret))
+    local caretX = innerX - self.scrollX + self:_textWidth(self.caret)
     love.graphics.setColor(t.color.text)
     love.graphics.rectangle("fill", caretX, textY, 1, font:getHeight())
   end
 
+  love.graphics.setScissor()
   love.graphics.setColor(r, g, b, a)
 end
 
@@ -95,7 +137,8 @@ function Textbox:mousepressed(px, py, btn)
   local inside = self:contains(px, py)
   self.focused = inside
   if inside then
-    self.caret = #self.value
+    self.caret = self:_caretFromX(px)
+    self:_ensureCaretVisible()
     self.blink, self.blinkOn = 0, true
     return true
   end
@@ -110,14 +153,25 @@ function Textbox:keypressed(key)
     if self.caret > 0 then
       self.value = self.value:sub(1, self.caret - 1) .. self.value:sub(self.caret + 1)
       self.caret = self.caret - 1
+      self:_ensureCaretVisible()
       self:_emitChange()
     end
     return true
   elseif key == "left" then
     self.caret = math.max(0, self.caret - 1)
+    self:_ensureCaretVisible()
     return true
   elseif key == "right" then
     self.caret = math.min(#self.value, self.caret + 1)
+    self:_ensureCaretVisible()
+    return true
+  elseif key == "home" then
+    self.caret = 0
+    self:_ensureCaretVisible()
+    return true
+  elseif key == "end" then
+    self.caret = #self.value
+    self:_ensureCaretVisible()
     return true
   end
   return false
@@ -128,6 +182,7 @@ function Textbox:textinput(text)
   if self.maxLength and #self.value >= self.maxLength then return true end
   self.value = self.value:sub(1, self.caret) .. text .. self.value:sub(self.caret + 1)
   self.caret = self.caret + #text
+  self:_ensureCaretVisible()
   self:_emitChange()
   return true
 end

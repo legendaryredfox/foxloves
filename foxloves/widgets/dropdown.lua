@@ -112,7 +112,15 @@ function Dropdown.new(opts)
   self.onChange = opts.onChange
   self.theme = opts.theme or defaultTheme
   self.root = nil  -- set by Root:add
+  self.focusable = true
   return self
+end
+
+-- Open the option list as a non-modal overlay (shared by click and keyboard).
+function Dropdown:_open()
+  if self.root then
+    self.root:openOverlay(openPopup(self), { modal = false })
+  end
 end
 
 function Dropdown:_select(i)
@@ -151,22 +159,31 @@ function Dropdown:draw()
   local cy = self.y + self.h / 2
   love.graphics.polygon("fill", cx, cy - 2, cx + caretW, cy - 2, cx + caretW / 2, cy + 4)
 
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
+
   love.graphics.setColor(r, g, b, a)
 end
 
 function Dropdown:mousepressed(px, py, btn)
   if btn ~= 1 then return false end
   if self:contains(px, py) then
-    if self.root then
-      self.root:openOverlay(openPopup(self), { modal = false })
-    end
+    self:_open()
     return true
   end
   return false
 end
 
 function Dropdown:mousereleased(px, py, btn) return false end
-function Dropdown:keypressed(key) return false end
+
+-- When focused, Space/Enter/Down open the option list.
+function Dropdown:keypressed(key)
+  if not util.isFocused(self) then return false end
+  if key == "space" or key == "return" or key == "kpenter" or key == "down" then
+    self:_open()
+    return true
+  end
+  return false
+end
 function Dropdown:textinput(text) return false end
 
 return Dropdown

@@ -37,6 +37,7 @@ function Slider.new(opts)
   self.theme = opts.theme or defaultTheme
   self.dragging = false
   self.handleR = self.h / 2
+  self.focusable = true
   return self
 end
 
@@ -60,11 +61,21 @@ function Slider:_setFromX(px)
   if self.step then
     value = self.min + math.floor((value - self.min) / self.step + 0.5) * self.step
   end
+  self:_apply(value)
+end
+
+-- Clamp and set the value, firing onChange only when it actually changes.
+function Slider:_apply(value)
   value = util.clamp(value, self.min, self.max)
   if value ~= self.value then
     self.value = value
     if self.onChange then self.onChange(value) end
   end
+end
+
+-- Keyboard/wheel increment: explicit step, else a tenth of the range.
+function Slider:_delta()
+  return self.step or (self.max - self.min) / 10
 end
 
 function Slider:update(dt)
@@ -96,6 +107,8 @@ function Slider:draw()
   love.graphics.setColor(t.color.border)
   love.graphics.circle("line", handleX, midY, self.handleR)
 
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
+
   love.graphics.setColor(r, g, b, a)
 end
 
@@ -118,7 +131,30 @@ function Slider:mousereleased(px, py, btn)
   return false
 end
 
-function Slider:keypressed() return false end
+-- When focused: arrows nudge by one step, Home/End jump to the ends.
+function Slider:keypressed(key)
+  if self.disabled or not util.isFocused(self) then return false end
+  if key == "left" or key == "down" then
+    self:_apply(self.value - self:_delta()); return true
+  elseif key == "right" or key == "up" then
+    self:_apply(self.value + self:_delta()); return true
+  elseif key == "home" then
+    self:_apply(self.min); return true
+  elseif key == "end" then
+    self:_apply(self.max); return true
+  end
+  return false
+end
+
 function Slider:textinput() return false end
+
+-- Scroll wheel over the track nudges the value.
+function Slider:wheelmoved(dx, dy)
+  if self.disabled or dy == 0 then return false end
+  local mx, my = love.mouse.getPosition()
+  if not self:contains(mx, my) then return false end
+  self:_apply(self.value + dy * self:_delta())
+  return true
+end
 
 return Slider

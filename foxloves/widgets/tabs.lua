@@ -30,6 +30,7 @@ function Tabs.new(opts)
   self.selected = opts.selected or 1
   self.onChange = opts.onChange
   self.theme = opts.theme or defaultTheme
+  self.hoverTab = nil  -- header segment under the cursor, or nil
   return self
 end
 
@@ -46,6 +47,11 @@ function Tabs:current()
 end
 
 function Tabs:update(dt)
+  local mx, my = love.mouse.getPosition()
+  self.hoverTab = nil
+  for i = 1, #self.tabs do
+    if util.contains(mx, my, self:tabBounds(i)) then self.hoverTab = i; break end
+  end
   local panel = self:current()
   if panel then panel:update(dt) end
 end
@@ -58,7 +64,13 @@ function Tabs:draw()
 
   for i, entry in ipairs(self.tabs) do
     local tx, ty, tw, th = self:tabBounds(i)
-    love.graphics.setColor(i == self.selected and t.color.accent or t.color.fg)
+    local segColor = t.color.fg
+    if i == self.selected then
+      segColor = t.color.accent
+    elseif i == self.hoverTab then
+      segColor = t.color.hover
+    end
+    love.graphics.setColor(segColor)
     love.graphics.rectangle("fill", tx, ty, tw, th)
     love.graphics.setColor(t.color.border)
     love.graphics.rectangle("line", tx, ty, tw, th)
@@ -104,6 +116,12 @@ end
 function Tabs:textinput(text)
   local panel = self:current()
   if panel then return panel:textinput(text) end
+  return false
+end
+
+function Tabs:wheelmoved(dx, dy)
+  local panel = self:current()
+  if panel and panel.wheelmoved then return panel:wheelmoved(dx, dy) end
   return false
 end
 

@@ -92,6 +92,10 @@ function Panel:keypressed(key)
   return self.container:keypressed(key)
 end
 
+function Panel:wheelmoved(dx, dy)
+  return self.container:wheelmoved(dx, dy)
+end
+
 function Panel:textinput(text)
   return self.container:textinput(text)
 end

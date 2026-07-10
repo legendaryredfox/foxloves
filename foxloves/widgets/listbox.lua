@@ -38,6 +38,7 @@ function ListBox.new(opts)
   self.moved = false
   self.pressY = 0
   self.lastY = 0
+  self.hover = nil  -- row index under the cursor, or nil
   return self
 end
 
@@ -57,14 +58,29 @@ function ListBox:rowAt(py)
 end
 
 function ListBox:update(dt)
-  if not self.dragging then return end
-  if love.mouse.isDown(1) then
-    local _, my = love.mouse.getPosition()
-    local dy = my - self.lastY
-    self.lastY = my
-    if math.abs(my - self.pressY) > DRAG_THRESHOLD then self.moved = true end
-    self.scroll = util.clamp(self.scroll - dy, 0, self:maxScroll())
+  local mx, my = love.mouse.getPosition()
+  if self.dragging then
+    if love.mouse.isDown(1) then
+      local dy = my - self.lastY
+      self.lastY = my
+      if math.abs(my - self.pressY) > DRAG_THRESHOLD then self.moved = true end
+      self.scroll = util.clamp(self.scroll - dy, 0, self:maxScroll())
+    end
+    self.hover = nil
+  elseif self:contains(mx, my) then
+    self.hover = self:rowAt(my)
+  else
+    self.hover = nil
   end
+end
+
+-- Scroll wheel over the box scrolls by one row per notch.
+function ListBox:wheelmoved(dx, dy)
+  if dy == 0 or self:maxScroll() == 0 then return false end
+  local mx, my = love.mouse.getPosition()
+  if not self:contains(mx, my) then return false end
+  self.scroll = util.clamp(self.scroll - dy * self.rowH, 0, self:maxScroll())
+  return true
 end
 
 function ListBox:draw()
@@ -82,6 +98,9 @@ function ListBox:draw()
     if ry + self.rowH > self.y and ry < self.y + self.h then
       if i == self.selected then
         love.graphics.setColor(t.color.accent)
+        love.graphics.rectangle("fill", self.x, ry, self.w, self.rowH)
+      elseif i == self.hover then
+        love.graphics.setColor(t.color.hover)
         love.graphics.rectangle("fill", self.x, ry, self.w, self.rowH)
       end
       love.graphics.setColor(t.color.text)

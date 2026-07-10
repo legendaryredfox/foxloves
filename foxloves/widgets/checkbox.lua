@@ -31,7 +31,13 @@ function Checkbox.new(opts)
   self.disabled = opts.disabled or false
   self.theme = opts.theme or defaultTheme
   self.pressed = false
+  self.focusable = true
   return self
+end
+
+function Checkbox:_toggle()
+  self.checked = not self.checked
+  if self.onChange then self.onChange(self.checked) end
 end
 
 -- Hit rectangle spans the box plus any label text.
@@ -62,6 +68,8 @@ function Checkbox:draw()
   love.graphics.rectangle("fill", self.x, self.y, box, box, t.radius, t.radius)
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, box, box, t.radius, t.radius)
+
+  if util.isFocused(self) then util.focusRing(t, self.x, self.y, box, box) end
 
   if self.checked then
     -- Simple check mark: two strokes inside the box.
@@ -97,14 +105,20 @@ function Checkbox:mousereleased(px, py, btn)
   self.pressed = false
   if self.disabled or not wasPressed then return false end
   if self:contains(px, py) then
-    self.checked = not self.checked
-    if self.onChange then self.onChange(self.checked) end
+    self:_toggle()
     return true
   end
   return false
 end
 
-function Checkbox:keypressed() return false end
+function Checkbox:keypressed(key)
+  if self.disabled or not util.isFocused(self) then return false end
+  if key == "space" or key == "return" or key == "kpenter" then
+    self:_toggle()
+    return true
+  end
+  return false
+end
 function Checkbox:textinput() return false end
 
 return Checkbox

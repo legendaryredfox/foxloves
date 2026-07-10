@@ -69,6 +69,14 @@ function Container:keypressed(key)
   return false
 end
 
+-- Wheel carries no coordinates; children self-check hover. Optional per child.
+function Container:wheelmoved(dx, dy)
+  for _, c in ipairs(self.children) do
+    if c.wheelmoved and c:wheelmoved(dx, dy) then return true end
+  end
+  return false
+end
+
 function Container:textinput(text)
   for _, c in ipairs(self.children) do
     if c:textinput(text) then return true end

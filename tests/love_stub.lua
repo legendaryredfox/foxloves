@@ -9,6 +9,7 @@ local fakeFont = {
 }
 
 local mouse = { x = 0, y = 0, down = {} }
+local keys = {}
 
 stub.install = function()
   local G = {}
@@ -38,6 +39,12 @@ stub.install = function()
     },
     keyboard = {
       setKeyRepeat = function() end,
+      isDown = function(...)
+        for _, k in ipairs({ ... }) do
+          if keys[k] then return true end
+        end
+        return false
+      end,
     },
     event = { quit = function() end },
   }
@@ -48,5 +55,8 @@ stub.setMouse = function(x, y) mouse.x, mouse.y = x, y end
 
 -- Set whether a mouse button is held (drives Slider drag polling in update).
 stub.setMouseDown = function(btn, isDown) mouse.down[btn] = isDown end
+
+-- Set whether a key is held (drives Shift-Tab reverse traversal).
+stub.setKey = function(key, isDown) keys[key] = isDown end
 
 return stub
