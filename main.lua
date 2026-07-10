@@ -1,0 +1,98 @@
+-- foxloves demo / playground. Everything is driven through a single fox.Root.
+local fox = require("foxloves")
+
+local ui
+local status = "interact with the widgets"
+
+-- A tiny solid icon so IconButton has something to draw.
+local function makeIcon()
+  local size = 16
+  local data = love.image.newImageData(size, size)
+  data:mapPixel(function(x, y)
+    local border = x == 0 or y == 0 or x == size - 1 or y == size - 1
+    if border then return 0.94, 0.95, 0.97, 1 end
+    return 0.90, 0.55, 0.25, 1
+  end)
+  return love.graphics.newImage(data)
+end
+
+local function setStatus(s) status = s end
+
+function love.load()
+  love.keyboard.setKeyRepeat(true)
+  ui = fox.Root.new()
+
+  -- Top row: a name field and a greet button.
+  local name = fox.Textbox.new{ x = 40, y = 56, w = 240, h = 34,
+    placeholder = "your name" }
+  ui:add(name)
+  ui:add(fox.Button.new{ x = 296, y = 56, w = 120, h = 34, label = "Greet",
+    onClick = function()
+      setStatus(name.value ~= "" and ("Hello, " .. name.value .. "!")
+        or "type a name first")
+    end })
+
+  -- A dropdown and a button that opens a modal dialog.
+  local colors = { "Red", "Green", "Blue" }
+  ui:add(fox.Dropdown.new{ x = 440, y = 56, w = 160, h = 34, options = colors,
+    onChange = function(i) setStatus("color: " .. colors[i]) end })
+  ui:add(fox.Button.new{ x = 440, y = 100, w = 160, h = 34, label = "About…",
+    onClick = function()
+      ui:openOverlay(fox.Modal.new{ w = 340, h = 170, title = "About foxloves",
+        message = "A small, themeable UI widget library for LOVE.",
+        buttons = {
+          { label = "Close" },
+          { label = "OK", onClick = function() setStatus("dialog: OK") end },
+        } }, { modal = true })
+    end })
+
+  -- Left panel groups Tier 1 controls in its own coordinate space.
+  local panel = fox.Panel.new{ x = 40, y = 150, w = 300, h = 300, title = "Controls" }
+  panel:add(fox.Checkbox.new{ x = 12, y = 12, label = "enable feature",
+    onChange = function(on) setStatus("checkbox: " .. tostring(on)) end })
+  panel:add(fox.Toggle.new{ x = 12, y = 48,
+    onChange = function(on) setStatus("toggle: " .. tostring(on)) end })
+  panel:add(fox.RadioGroup.new{ x = 12, y = 84, options = { "small", "medium", "large" },
+    onChange = function(i) setStatus("radio: " .. i) end })
+
+  local progress = fox.ProgressBar.new{ x = 12, y = 178, w = 260, h = 16, value = 0.3 }
+  panel:add(progress)
+  panel:add(fox.Slider.new{ x = 12, y = 204, w = 260, value = 0.3,
+    onChange = function(v) progress.value = v end })
+  panel:add(fox.Stepper.new{ x = 12, y = 234, w = 140, value = 3, min = 0, max = 9,
+    onChange = function(v) setStatus("stepper: " .. v) end })
+  panel:add(fox.IconButton.new{ x = 160, y = 232, w = 40, h = 40, image = makeIcon(),
+    onClick = function() setStatus("icon clicked") end })
+  ui:add(panel)
+
+  -- Right column: a scrollable list of rows.
+  local items = {}
+  for i = 1, 24 do items[i] = "row " .. i end
+  ui:add(fox.Label.new{ x = 440, y = 150, text = "ListBox (drag to scroll)", muted = true })
+  ui:add(fox.ListBox.new{ x = 440, y = 172, w = 240, h = 220, items = items,
+    onChange = function(i) setStatus("selected " .. items[i]) end })
+
+  -- A tooltip over the dropdown, drawn on top because it is added last.
+  ui:add(fox.Tooltip.new{ target = { x = 440, y = 56, w = 160, h = 34 },
+    text = "pick an accent color" })
+end
+
+function love.update(dt) ui:update(dt) end
+
+function love.draw()
+  love.graphics.clear(0.10, 0.11, 0.13)
+  love.graphics.setColor(fox.theme.color.text)
+  love.graphics.print("foxloves", 40, 24)
+  love.graphics.setColor(fox.theme.color.textMuted)
+  love.graphics.print(status, 40, 470)
+  ui:draw()
+end
+
+function love.mousepressed(x, y, b)  ui:mousepressed(x, y, b) end
+function love.mousereleased(x, y, b) ui:mousereleased(x, y, b) end
+function love.textinput(t)           ui:textinput(t) end
+
+function love.keypressed(key)
+  if ui:keypressed(key) then return end
+  if key == "escape" then love.event.quit() end
+end

@@ -1,0 +1,26 @@
+# Claude Code / AI tooling
+.claude/
+
+# LÖVE / distributables
+*.love
+builds/
+dist/
+
+# Lua bytecode
+*.luac
+luac.out
+
+# Logs
+*.log
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
