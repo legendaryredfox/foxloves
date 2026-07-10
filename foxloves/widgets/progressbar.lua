@@ -5,14 +5,18 @@
 --   value = 0,
 --   min = 0,
 --   max = 1,
+--   animated = true,          -- ease the fill toward value in update(dt)
 --   theme = <theme table>,
 -- }
 --
 -- Non-interactive. Draws a background track with an accent fill sized to
--- clamp((value - min) / (max - min), 0, 1). Set bar.value to update.
+-- clamp((value - min) / (max - min), 0, 1). Set bar.value to update; the fill
+-- eases toward the new fraction unless animated == false.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
+
+local FILL_SPEED = 4  -- fill eases toward the target fraction at this rate (per second)
 
 local ProgressBar = {}
 ProgressBar.__index = ProgressBar
@@ -27,18 +31,32 @@ function ProgressBar.new(opts)
   self.value = opts.value or 0
   self.min = opts.min or 0
   self.max = opts.max or 1
+  self.animated = opts.animated ~= false
   self.theme = opts.theme or defaultTheme
+  self.display = self:fraction()  -- eased fill fraction; starts settled on value
   return self
 end
 
--- Fraction filled, in [0, 1].
+-- Target fraction filled, in [0, 1].
 function ProgressBar:fraction()
   local span = self.max - self.min
   if span == 0 then return 0 end
   return util.clamp((self.value - self.min) / span, 0, 1)
 end
 
-function ProgressBar:update(dt) end
+function ProgressBar:update(dt)
+  local target = self:fraction()
+  if not self.animated then
+    self.display = target
+    return
+  end
+  local step = FILL_SPEED * dt
+  if self.display < target then
+    self.display = math.min(target, self.display + step)
+  elseif self.display > target then
+    self.display = math.max(target, self.display - step)
+  end
+end
 
 function ProgressBar:draw()
   local t = self.theme
@@ -47,7 +65,7 @@ function ProgressBar:draw()
   love.graphics.setColor(t.color.fg)
   love.graphics.rectangle("fill", self.x, self.y, self.w, self.h, t.radius, t.radius)
 
-  local fillW = self.w * self:fraction()
+  local fillW = self.w * self.display
   if fillW > 0 then
     love.graphics.setColor(t.color.accent)
     love.graphics.rectangle("fill", self.x, self.y, fillW, self.h, t.radius, t.radius)
