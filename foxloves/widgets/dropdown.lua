@@ -144,10 +144,12 @@ function Dropdown:draw()
   local ty = self.y + (self.h - font:getHeight()) / 2
   love.graphics.print(label, self.x + t.padding, ty)
 
-  -- caret: a small downward triangle on the right
-  local cx = self.x + self.w - t.padding - 6
+  -- caret: a small downward triangle, right-aligned inside the padding and
+  -- centered vertically (centroid on the mid-line)
+  local caretW = 8
+  local cx = self.x + self.w - t.padding - caretW
   local cy = self.y + self.h / 2
-  love.graphics.polygon("fill", cx, cy - 3, cx + 12, cy - 3, cx + 6, cy + 4)
+  love.graphics.polygon("fill", cx, cy - 2, cx + caretW, cy - 2, cx + caretW / 2, cy + 4)
 
   love.graphics.setColor(r, g, b, a)
 end

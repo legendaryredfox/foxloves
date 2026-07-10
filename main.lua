@@ -59,9 +59,10 @@ function love.load()
   panel:add(progress)
   panel:add(fox.Slider.new{ x = 12, y = 204, w = 260, value = 0.3,
     onChange = function(v) progress.value = v end })
-  panel:add(fox.Stepper.new{ x = 12, y = 234, w = 140, value = 3, min = 0, max = 9,
+  -- Stepper and icon share a row: same height and top, matching bottom margin.
+  panel:add(fox.Stepper.new{ x = 12, y = 228, w = 140, h = 34, value = 3, min = 0, max = 9,
     onChange = function(v) setStatus("stepper: " .. v) end })
-  panel:add(fox.IconButton.new{ x = 160, y = 232, w = 40, h = 40, image = makeIcon(),
+  panel:add(fox.IconButton.new{ x = 160, y = 228, w = 34, h = 34, image = makeIcon(),
     onClick = function() setStatus("icon clicked") end })
   ui:add(panel)
 
