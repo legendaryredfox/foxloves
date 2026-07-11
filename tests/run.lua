@@ -29,6 +29,8 @@ local cases = {
   "listbox",
   "badge",
   "avatar",
+  "contextmenu",
+  "toast",
   "interaction",
 }
 

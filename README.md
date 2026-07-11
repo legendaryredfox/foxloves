@@ -9,8 +9,9 @@ lifecycle.
 
 - **Controls:** Button, Textbox, Label, Badge, Avatar, Divider, ProgressBar,
   Checkbox, Toggle, RadioGroup, Slider, Stepper, IconButton.
-- **Containers & overlays:** Panel, Modal, Dropdown, Tooltip, Tabs, ListBox —
-  coordinated by `fox.Root` (z-order, input capture, keyboard focus).
+- **Containers & overlays:** Panel, Modal, Dropdown, Tooltip, Tabs, ListBox,
+  ContextMenu, ToastHost — coordinated by `fox.Root` (z-order, input capture,
+  keyboard focus).
 - **Themeable:** every widget reads colors and metrics from a shared theme.
 - **No dependencies:** pure Lua, LÖVE 11.x.
 - **Headless tests:** the suite mocks the LÖVE API and runs without a window.

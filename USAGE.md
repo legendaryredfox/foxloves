@@ -426,6 +426,47 @@ When focused, **Up/Down** move the selection (scrolling it into view),
 and **Enter** re-confirms. Fires `onChange(index)`. `listbox.selected` is
 readable.
 
+## ContextMenu
+
+```lua
+fox.ContextMenu.new{
+  target = { x, y, w, h },   -- optional right-click area
+  items = {
+    { label = "Cut",   onClick = function() end },
+    { label = "Copy",  onClick = function() end, enabled = false },
+    { separator = true },
+    { label = "Paste", onClick = function() end },
+  },
+  theme,
+}
+```
+
+Right-clicking (button 2) inside `target` opens the menu at the cursor as a
+non-modal overlay; you can also open it anywhere with `menu:openAt(px, py)`.
+The popup is clamped to stay on screen. Disabled rows (`enabled = false`) are
+muted and unselectable, `{ separator = true }` draws a divider. Selecting an
+enabled row runs its `onClick` and closes. When open, **Up/Down** move the
+highlight (skipping separators and disabled rows), **Enter/Space** activate,
+and **Esc** or a click outside dismisses. Must be added to a `fox.Root`.
+
+## ToastHost
+
+```lua
+local host = ui:add(fox.ToastHost.new{
+  corner = "br", gap = 8, margin = 12, width = 260,
+  duration = 3, max = 4, theme,
+})
+host:show("Saved.", { kind = "success", duration = 2 })
+```
+
+A floating stack of transient messages. `show(text, opts)` queues a toast and
+returns a handle; `kind` is `info | success | warning | error` and colors the
+left stripe (reads `theme.color[kind]`, falling back to `accent`). Toasts fade
+in, stay for `duration` seconds, then fade out and are removed; `corner` picks
+which corner they stack in and `max` bounds how many are kept (oldest dropped).
+`host:dismiss(handle)` fades one out early, `host:clear()` removes all. The host
+never captures input — add it after the widgets it floats over.
+
 ## Theming
 
 Widgets read all colors and metrics from a theme table and fall back to the
@@ -470,9 +511,9 @@ suite is split into one file per widget/topic under `tests/cases/`, sharing
 ## Future ideas
 
 The core widget set (Tier 1 controls + Tier 2 overlays/containers) is complete.
-Possible future additions: text area (multi-line input), context menu, color
-picker, tree view, notification/toast. Each would follow the same lifecycle and,
-where it floats, ride the `fox.Root` overlay layer.
+Possible future additions: text area (multi-line input), color picker, tree
+view, scroll area. Each would follow the same lifecycle and, where it floats,
+ride the `fox.Root` overlay layer.
 
 ## Git rules for contributors and AI agents
 

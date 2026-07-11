@@ -13,6 +13,9 @@ local M = {
     disabled = {0.30, 0.31, 0.34, 1.0},
     text     = {0.94, 0.95, 0.97, 1.0},
     textMuted= {0.55, 0.57, 0.62, 1.0},
+    success  = {0.35, 0.72, 0.42, 1.0}, -- toast/status accent
+    warning  = {0.92, 0.72, 0.25, 1.0},
+    error    = {0.86, 0.32, 0.30, 1.0},
   },
   radius  = 4,
   padding = 8,

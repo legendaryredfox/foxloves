@@ -25,6 +25,8 @@ local M = {
   Tooltip     = require("foxloves.widgets.tooltip"),
   Tabs        = require("foxloves.widgets.tabs"),
   ListBox     = require("foxloves.widgets.listbox"),
+  ContextMenu = require("foxloves.widgets.contextmenu"),
+  ToastHost   = require("foxloves.widgets.toast"),
 }
 
 return M
