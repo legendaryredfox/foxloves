@@ -75,7 +75,8 @@ function love.load()
 
   -- Two avatars beside the list label: an image (circle) and an initials
   -- fallback (rounded).
-  ui:add(fox.Avatar.new{ x = 700, y = 146, size = 34, image = makeIcon() })
+  ui:add(fox.Avatar.new{ x = 700, y = 146, size = 34,
+    image = love.graphics.newImage("assets/avatar.jpg") })
   ui:add(fox.Avatar.new{ x = 700, y = 186, size = 34, name = "Red Fox",
     shape = "rounded" })
 
