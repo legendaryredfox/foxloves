@@ -55,3 +55,32 @@ do
   end)
   check("draw with/without bubble no error", ok)
 end
+
+do
+  h.section("Slider vertical")
+  -- Vertical: min at the bottom (high y), max at the top (low y). Height 100.
+  local v
+  local s = fox.Slider.new{ x = 0, y = 0, w = 20, h = 100, min = 0, max = 100,
+    vertical = true, onChange = function(nv) v = nv end }
+  check("handle radius from width", s.handleR == 10)
+  check("starts at min", s.value == 0)
+  -- press near the top jumps toward max
+  love_stub.setMouse(10, 0)
+  s:mousepressed(10, 0, 1)
+  check("dragging set", s.dragging == true)
+  check("value jumped high", s.value > 90)
+  check("onChange fired", v == s.value)
+  -- update follows cursor to the bottom (min)
+  love_stub.setMouseDown(1, true)
+  love_stub.setMouse(10, 100)
+  s:update(0.016)
+  check("value followed to low", s.value < 10)
+  love_stub.setMouseDown(1, false)
+  -- wheel over the track nudges
+  love_stub.setMouse(10, 50)
+  local before = s.value
+  s:wheelmoved(0, 1)
+  check("wheel changed value", s.value ~= before)
+  local ok = pcall(function() s.dragging = true; s.showValue = true; s:draw() end)
+  check("draw vertical no error", ok)
+end

@@ -29,3 +29,24 @@ do
   local ok = pcall(function() c.checked = true; c:draw() end)
   check("draw no error", ok)
 end
+
+do
+  h.section("Checkbox indeterminate")
+  local seen
+  local ic = fox.Checkbox.new{ x = 0, y = 0, indeterminate = true,
+    onChange = function(v) seen = v end }
+  check("starts indeterminate", ic.indeterminate == true)
+  check("starts unchecked", ic.checked == false)
+  -- first toggle resolves indeterminate to checked
+  ic:mousepressed(2, 2, 1); ic:mousereleased(2, 2, 1)
+  check("toggle clears indeterminate", ic.indeterminate == false)
+  check("toggle resolves to checked", ic.checked == true)
+  check("onChange got true", seen == true)
+  -- setter re-arms the dash without firing onChange
+  seen = nil
+  ic:setIndeterminate(true)
+  check("setter re-arms", ic.indeterminate == true)
+  check("setter silent", seen == nil)
+  local ok = pcall(function() ic:draw() end)
+  check("draw indeterminate no error", ok)
+end

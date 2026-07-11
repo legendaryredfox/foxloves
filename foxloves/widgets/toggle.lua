@@ -32,6 +32,7 @@ function Toggle.new(opts)
   self.disabled = opts.disabled or false
   self.theme = opts.theme or defaultTheme
   self.pressed = false
+  self.hovered = false
   self.anim = self.on and 1 or 0  -- 0 = off end, 1 = on end
   self.focusable = true
   return self
@@ -44,6 +45,11 @@ end
 
 function Toggle:contains(px, py)
   return util.contains(px, py, self.x, self.y, self.w, self.h)
+end
+
+-- Hover fill on the off-state track (event-driven, local coords; see Container).
+function Toggle:mousemoved(px, py)
+  self.hovered = not self.disabled and self:contains(px, py)
 end
 
 function Toggle:update(dt)
@@ -66,6 +72,8 @@ function Toggle:draw()
     trackColor = t.color.disabled
   elseif self.on then
     trackColor = t.color.accent
+  elseif self.hovered then
+    trackColor = t.color.hover
   else
     trackColor = t.color.fg
   end

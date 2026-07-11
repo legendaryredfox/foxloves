@@ -3,8 +3,10 @@
 -- Label.new{
 --   x, y,
 --   w = nil,             -- optional; enables alignment (uses printf)
+--   h = nil,             -- optional; enables vertical alignment within h
 --   text = "",
 --   align = "left",      -- "left" | "center" | "right" (needs w)
+--   valign = "top",      -- "top" | "middle" | "bottom" (needs h)
 --   color = nil,         -- table; overrides theme color
 --   muted = false,       -- shortcut for theme.color.textMuted
 --   truncate = false,    -- with w: clip to one line, ellipsis on overflow
@@ -26,8 +28,10 @@ function Label.new(opts)
   self.x = opts.x or 0
   self.y = opts.y or 0
   self.w = opts.w
+  self.h = opts.h
   self.text = opts.text or ""
   self.align = opts.align or "left"
+  self.valign = opts.valign or "top"
   self.color = opts.color
   self.muted = opts.muted or false
   self.truncate = opts.truncate or false
@@ -51,6 +55,25 @@ function Label:_truncate(font, text)
   return ell
 end
 
+-- Draw Y after applying vertical alignment within h. Without h, returns self.y.
+-- Text height is the wrapped line count when w is set, else one line.
+function Label:_offsetY(font)
+  if not self.h then return self.y end
+  local textH
+  if self.w and not self.truncate then
+    local _, lines = font:getWrap(self.text, self.w)
+    textH = math.max(1, #lines) * font:getHeight()
+  else
+    textH = font:getHeight()
+  end
+  if self.valign == "middle" then
+    return self.y + (self.h - textH) / 2
+  elseif self.valign == "bottom" then
+    return self.y + self.h - textH
+  end
+  return self.y
+end
+
 function Label:update(dt) end
 
 function Label:draw()
@@ -62,12 +85,13 @@ function Label:draw()
   local color = self.color or (self.muted and t.color.textMuted) or t.color.text
   love.graphics.setColor(color)
 
+  local dy = self:_offsetY(font)
   if self.w and self.truncate then
-    love.graphics.printf(self:_truncate(font, self.text), self.x, self.y, self.w, self.align)
+    love.graphics.printf(self:_truncate(font, self.text), self.x, dy, self.w, self.align)
   elseif self.w then
-    love.graphics.printf(self.text, self.x, self.y, self.w, self.align)
+    love.graphics.printf(self.text, self.x, dy, self.w, self.align)
   else
-    love.graphics.print(self.text, self.x, self.y)
+    love.graphics.print(self.text, self.x, dy)
   end
 
   love.graphics.setColor(r, g, b, a)

@@ -5,6 +5,7 @@
 --   size = 20,            -- box side length
 --   label = nil,          -- optional text to the right of the box
 --   checked = false,
+--   indeterminate = false,-- tri-state dash; toggling resolves it to checked
 --   onChange = function(checked) end,
 --   disabled = false,
 --   theme = <theme table>,
@@ -12,6 +13,7 @@
 --
 -- Toggles on mouserelease inside when the press also began inside (Button-like).
 -- Hit area covers the box and the label. Fires onChange(checked) on toggle.
+-- Indeterminate draws a dash; the first toggle clears it and sets checked=true.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -27,6 +29,7 @@ function Checkbox.new(opts)
   self.size = opts.size or 20
   self.label = opts.label
   self.checked = opts.checked or false
+  self.indeterminate = opts.indeterminate or false
   self.onChange = opts.onChange
   self.disabled = opts.disabled or false
   self.theme = opts.theme or defaultTheme
@@ -37,8 +40,19 @@ function Checkbox.new(opts)
 end
 
 function Checkbox:_toggle()
-  self.checked = not self.checked
+  -- An indeterminate box resolves to checked on first toggle; otherwise flip.
+  if self.indeterminate then
+    self.indeterminate = false
+    self.checked = true
+  else
+    self.checked = not self.checked
+  end
   if self.onChange then self.onChange(self.checked) end
+end
+
+-- Set/clear the tri-state dash (does not fire onChange).
+function Checkbox:setIndeterminate(on)
+  self.indeterminate = on and true or false
 end
 
 -- Hit rectangle spans the box plus any label text.
@@ -80,9 +94,16 @@ function Checkbox:draw()
 
   if util.isFocused(self) then util.focusRing(t, self.x, self.y, box, box) end
 
-  if self.checked then
+  local mark = self.disabled and t.color.textMuted or t.color.accent
+  if self.indeterminate then
+    -- Tri-state: a single horizontal dash across the box middle.
+    love.graphics.setColor(mark)
+    love.graphics.line(
+      self.x + box * 0.24, self.y + box * 0.5,
+      self.x + box * 0.76, self.y + box * 0.5)
+  elseif self.checked then
     -- Simple check mark: two strokes inside the box.
-    love.graphics.setColor(self.disabled and t.color.textMuted or t.color.accent)
+    love.graphics.setColor(mark)
     local x, y = self.x, self.y
     love.graphics.line(
       x + box * 0.22, y + box * 0.52,

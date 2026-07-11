@@ -33,3 +33,21 @@ do
   local ok = pcall(function() long:draw() end)
   check("draw truncated no error", ok)
 end
+
+do
+  h.section("Label vertical align")
+  -- Stub font is 14px tall. In a 100px box a single line offsets by valign.
+  local f = love.graphics.getFont()
+  local fh = f:getHeight()
+  local top = fox.Label.new{ x = 0, y = 10, h = 100, text = "hi", valign = "top" }
+  check("top pins to y", top:_offsetY(f) == 10)
+  local mid = fox.Label.new{ x = 0, y = 10, h = 100, text = "hi", valign = "middle" }
+  check("middle centers", mid:_offsetY(f) == 10 + (100 - fh) / 2)
+  local bot = fox.Label.new{ x = 0, y = 10, h = 100, text = "hi", valign = "bottom" }
+  check("bottom pins to h", bot:_offsetY(f) == 10 + 100 - fh)
+  -- No h: falls back to y regardless of valign.
+  local none = fox.Label.new{ x = 0, y = 5, text = "hi", valign = "middle" }
+  check("no h uses y", none:_offsetY(f) == 5)
+  local ok = pcall(function() mid:draw() end)
+  check("draw valign no error", ok)
+end

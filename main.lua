@@ -62,6 +62,7 @@ function love.load()
   -- Left panel groups Tier 1 controls in its own coordinate space.
   local panel = fox.Panel.new{ x = 40, y = 150, w = 300, h = 300, title = "Controls" }
   panel:add(fox.Checkbox.new{ x = 12, y = 12, label = "enable feature",
+    indeterminate = true,
     onChange = function(on) setStatus("checkbox: " .. tostring(on)) end })
   panel:add(fox.Toggle.new{ x = 12, y = 48,
     onChange = function(on) setStatus("toggle: " .. tostring(on)) end })
@@ -72,6 +73,9 @@ function love.load()
   panel:add(progress)
   panel:add(fox.Slider.new{ x = 12, y = 204, w = 260, value = 0.3,
     onChange = function(v) progress.value = v end })
+  -- Vertical slider (right of the panel) also drives the progress bar.
+  ui:add(fox.Slider.new{ x = 356, y = 172, w = 24, h = 200, vertical = true,
+    value = 0.3, onChange = function(v) progress.value = v end })
   -- Stepper and icon share a row: same height and top, matching bottom margin.
   panel:add(fox.Stepper.new{ x = 12, y = 228, w = 140, h = 34, value = 3, min = 0, max = 9,
     onChange = function(v) setStatus("stepper: " .. v) end })
@@ -83,11 +87,11 @@ function love.load()
   local items = {}
   for i = 1, 24 do items[i] = "row " .. i end
   ui:add(fox.Label.new{ x = 440, y = 150, text = "ListBox (drag scroll, right-click)", muted = true })
-  ui:add(fox.ListBox.new{ x = 440, y = 172, w = 240, h = 220, items = items,
+  ui:add(fox.ListBox.new{ x = 440, y = 172, w = 240, h = 196, items = items,
     onChange = function(i) setStatus("selected " .. items[i]) end })
 
   -- Right-clicking the list opens a context menu over its rect.
-  ui:add(fox.ContextMenu.new{ target = { x = 440, y = 172, w = 240, h = 220 },
+  ui:add(fox.ContextMenu.new{ target = { x = 440, y = 172, w = 240, h = 196 },
     items = {
       { label = "Refresh",   onClick = function() setStatus("menu: refresh") end },
       { label = "Duplicate", onClick = function() setStatus("menu: duplicate") end },
@@ -101,6 +105,13 @@ function love.load()
     image = love.graphics.newImage("assets/avatar.jpg") })
   ui:add(fox.Avatar.new{ x = 700, y = 186, size = 34, name = "Red Fox",
     shape = "rounded" })
+
+  -- Labeled divider ("— OR —" style) between the list and the badge row.
+  ui:add(fox.Divider.new{ x = 440, y = 382, length = 240, label = "OR" })
+
+  -- Vertically-centered label inside a fixed-height slot next to the badges.
+  ui:add(fox.Label.new{ x = 700, y = 396, w = 90, h = 24, text = "centered",
+    valign = "middle", align = "center", muted = true })
 
   -- A row of badges under the list: two static, one removable chip.
   ui:add(fox.Badge.new{ x = 440, y = 404, text = "New" })

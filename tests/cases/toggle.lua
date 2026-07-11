@@ -15,6 +15,14 @@ do
   for _ = 1, 60 do tg:update(0.016) end
   check("anim reaches on end", tg.anim == 1)
   check("input ignored outside", tg:mousepressed(900, 900, 1) == false)
+  -- hover fill (event-driven, local coords)
+  tg:mousemoved(5, 5)
+  check("hover true over track", tg.hovered == true)
+  tg:mousemoved(900, 900)
+  check("hover false off widget", tg.hovered == false)
+  local dt = fox.Toggle.new{ disabled = true }
+  dt:mousemoved(5, 5)
+  check("disabled never hovers", dt.hovered == false)
   local ok = pcall(function() tg:draw() end)
   check("draw no error", ok)
 end

@@ -9,6 +9,7 @@
 --   disabled = false,
 --   showValue = false,    -- draw a value bubble above the handle while dragging
 --   format = nil,         -- function(value) -> string for that bubble
+--   vertical = false,     -- true = vertical track (min bottom, max top)
 --   theme = <theme table>,
 -- }
 --
@@ -39,11 +40,15 @@ function Slider.new(opts)
   self.showValue = opts.showValue or false
   self.format = opts.format
   self.theme = opts.theme or defaultTheme
+  self.vertical = opts.vertical or false
   self.dragging = false
   self.hovered = false
-  self.grabOffset = 0  -- handle-center minus cursor X while dragging
-  self.screenDX = 0    -- global mouse X minus local X, captured at press
-  self.handleR = self.h / 2
+  self.grabOffsetX = 0  -- handle-center minus cursor, captured at grab
+  self.grabOffsetY = 0
+  self.screenDX = 0     -- global mouse minus local, captured at press
+  self.screenDY = 0
+  -- Handle radius comes from the short (perpendicular) axis.
+  self.handleR = (self.vertical and self.w or self.h) / 2
   self.focusable = true
   return self
 end
@@ -52,16 +57,22 @@ function Slider:contains(px, py)
   return util.contains(px, py, self.x, self.y, self.w, self.h)
 end
 
--- Center X of the handle in screen space.
-function Slider:_handleX()
-  return self.x + self.handleR + (self.w - self.handleR * 2) * self:fraction()
+-- Center (x, y) of the handle in screen space. Vertical runs min at the bottom
+-- to max at the top; horizontal runs min left to max right.
+function Slider:_handlePos()
+  local frac = self:fraction()
+  if self.vertical then
+    local travel = self.h - self.handleR * 2
+    return self.x + self.w / 2, self.y + self.h - self.handleR - travel * frac
+  end
+  local travel = self.w - self.handleR * 2
+  return self.x + self.handleR + travel * frac, self.y + self.h / 2
 end
 
 -- True when (px, py) lands on the handle circle.
 function Slider:_onHandle(px, py)
-  local hx = self:_handleX()
-  local midY = self.y + self.h / 2
-  local dx, dy = px - hx, py - midY
+  local hx, hy = self:_handlePos()
+  local dx, dy = px - hx, py - hy
   return dx * dx + dy * dy <= self.handleR * self.handleR
 end
 
@@ -72,11 +83,19 @@ function Slider:fraction()
   return (self.value - self.min) / span
 end
 
--- Map a cursor X to a value, snapped to step and clamped, then apply it.
-function Slider:_setFromX(px)
-  local trackLeft = self.x + self.handleR
-  local trackW = self.w - self.handleR * 2
-  local frac = trackW > 0 and util.clamp((px - trackLeft) / trackW, 0, 1) or 0
+-- Map a cursor position to a value, snapped to step and clamped, then apply it.
+-- Reads the main axis (X horizontal, Y vertical); the other coord is ignored.
+function Slider:_setFromPos(px, py)
+  local frac
+  if self.vertical then
+    local travel = self.h - self.handleR * 2
+    frac = travel > 0
+      and util.clamp((self.y + self.h - self.handleR - py) / travel, 0, 1) or 0
+  else
+    local travel = self.w - self.handleR * 2
+    frac = travel > 0
+      and util.clamp((px - (self.x + self.handleR)) / travel, 0, 1) or 0
+  end
   local value = self.min + frac * (self.max - self.min)
   if self.step then
     value = self.min + math.floor((value - self.min) / self.step + 0.5) * self.step
@@ -113,8 +132,9 @@ function Slider:update(dt)
   if love.mouse.isDown(1) then
     -- Global mouse position, mapped back into the slider's local space via the
     -- delta captured at press so it works inside translated containers.
-    local mx = love.mouse.getPosition()
-    self:_setFromX(mx - self.screenDX + self.grabOffset)
+    local mx, my = love.mouse.getPosition()
+    self:_setFromPos(mx - self.screenDX + self.grabOffsetX,
+      my - self.screenDY + self.grabOffsetY)
   else
     self.dragging = false
   end
@@ -124,23 +144,34 @@ function Slider:draw()
   local t = self.theme
   local r, g, b, a = love.graphics.getColor()
 
-  local midY = self.y + self.h / 2
-  local trackH = math.max(4, self.h / 4)
+  local handleX, handleY = self:_handlePos()
+  local trackT = math.max(4, (self.vertical and self.w or self.h) / 4)
   love.graphics.setColor(t.color.fg)
-  love.graphics.rectangle("fill", self.x, midY - trackH / 2, self.w, trackH, trackH / 2, trackH / 2)
-
-  local handleX = self:_handleX()
   love.graphics.setColor(self.disabled and t.color.disabled or t.color.accent)
-  love.graphics.rectangle("fill", self.x, midY - trackH / 2,
-    handleX - self.x, trackH, trackH / 2, trackH / 2)
+  if self.vertical then
+    local midX = self.x + self.w / 2
+    love.graphics.setColor(t.color.fg)
+    love.graphics.rectangle("fill", midX - trackT / 2, self.y, trackT, self.h, trackT / 2, trackT / 2)
+    -- Filled portion runs from the bottom (min) up to the handle.
+    love.graphics.setColor(self.disabled and t.color.disabled or t.color.accent)
+    love.graphics.rectangle("fill", midX - trackT / 2, handleY,
+      trackT, self.y + self.h - handleY, trackT / 2, trackT / 2)
+  else
+    local midY = self.y + self.h / 2
+    love.graphics.setColor(t.color.fg)
+    love.graphics.rectangle("fill", self.x, midY - trackT / 2, self.w, trackT, trackT / 2, trackT / 2)
+    love.graphics.setColor(self.disabled and t.color.disabled or t.color.accent)
+    love.graphics.rectangle("fill", self.x, midY - trackT / 2,
+      handleX - self.x, trackT, trackT / 2, trackT / 2)
+  end
 
   -- Ball brightens on hover/drag; its outline picks up the focus accent.
   local active = not self.disabled and (self.hovered or self.dragging)
   love.graphics.setColor(self.disabled and t.color.textMuted
     or (active and t.color.focus or t.color.text))
-  love.graphics.circle("fill", handleX, midY, self.handleR)
+  love.graphics.circle("fill", handleX, handleY, self.handleR)
   love.graphics.setColor(active and t.color.accent or t.color.border)
-  love.graphics.circle("line", handleX, midY, self.handleR)
+  love.graphics.circle("line", handleX, handleY, self.handleR)
 
   if self.showValue and self.dragging then
     local font = defaultTheme.getFont(t)
@@ -149,8 +180,15 @@ function Slider:draw()
     local pad = t.padding
     local bw = font:getWidth(txt) + pad
     local bh = font:getHeight() + pad / 2
-    local bx = handleX - bw / 2
-    local by = self.y - bh - 4
+    -- Horizontal: above the handle. Vertical: to the right of it.
+    local bx, by
+    if self.vertical then
+      bx = self.x + self.w + 4
+      by = handleY - bh / 2
+    else
+      bx = handleX - bw / 2
+      by = self.y - bh - 4
+    end
     love.graphics.setColor(t.color.fg)
     love.graphics.rectangle("fill", bx, by, bw, bh, t.radius, t.radius)
     love.graphics.setColor(t.color.border)
@@ -170,14 +208,19 @@ function Slider:mousepressed(px, py, btn)
     self.dragging = true
     -- Remember how the global cursor maps to this local coord so update() can
     -- follow the mouse even when the slider lives inside a translated container.
-    self.screenDX = (love.mouse.getPosition()) - px
+    local gmx, gmy = love.mouse.getPosition()
+    self.screenDX = gmx - px
+    self.screenDY = gmy - py
     -- Grabbing the ball keeps its offset from the cursor so it holds still
     -- until the pointer moves; clicking the track centers it on the cursor.
     if self:_onHandle(px, py) then
-      self.grabOffset = self:_handleX() - px
+      local hx, hy = self:_handlePos()
+      self.grabOffsetX = hx - px
+      self.grabOffsetY = hy - py
     else
-      self.grabOffset = 0
-      self:_setFromX(px)
+      self.grabOffsetX = 0
+      self.grabOffsetY = 0
+      self:_setFromPos(px, py)
     end
     return true
   end
