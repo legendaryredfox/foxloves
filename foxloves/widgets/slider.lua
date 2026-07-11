@@ -7,6 +7,8 @@
 --   step = nil,           -- optional snap increment
 --   onChange = function(value) end,
 --   disabled = false,
+--   showValue = false,    -- draw a value bubble above the handle while dragging
+--   format = nil,         -- function(value) -> string for that bubble
 --   theme = <theme table>,
 -- }
 --
@@ -34,8 +36,13 @@ function Slider.new(opts)
   self.value = util.clamp(opts.value or self.min, self.min, self.max)
   self.onChange = opts.onChange
   self.disabled = opts.disabled or false
+  self.showValue = opts.showValue or false
+  self.format = opts.format
   self.theme = opts.theme or defaultTheme
   self.dragging = false
+  self.hovered = false
+  self.grabOffset = 0  -- handle-center minus cursor X while dragging
+  self.screenDX = 0    -- global mouse X minus local X, captured at press
   self.handleR = self.h / 2
   self.focusable = true
   return self
@@ -43,6 +50,19 @@ end
 
 function Slider:contains(px, py)
   return util.contains(px, py, self.x, self.y, self.w, self.h)
+end
+
+-- Center X of the handle in screen space.
+function Slider:_handleX()
+  return self.x + self.handleR + (self.w - self.handleR * 2) * self:fraction()
+end
+
+-- True when (px, py) lands on the handle circle.
+function Slider:_onHandle(px, py)
+  local hx = self:_handleX()
+  local midY = self.y + self.h / 2
+  local dx, dy = px - hx, py - midY
+  return dx * dx + dy * dy <= self.handleR * self.handleR
 end
 
 -- Fraction of the range currently selected, in [0, 1].
@@ -78,11 +98,23 @@ function Slider:_delta()
   return self.step or (self.max - self.min) / 10
 end
 
+-- Text shown in the value bubble: custom format, else integer when whole and
+-- two decimals otherwise.
+function Slider:_valueText()
+  if self.format then return self.format(self.value) end
+  if self.value == math.floor(self.value) then
+    return tostring(math.floor(self.value))
+  end
+  return string.format("%.2f", self.value)
+end
+
 function Slider:update(dt)
   if not self.dragging then return end
   if love.mouse.isDown(1) then
+    -- Global mouse position, mapped back into the slider's local space via the
+    -- delta captured at press so it works inside translated containers.
     local mx = love.mouse.getPosition()
-    self:_setFromX(mx)
+    self:_setFromX(mx - self.screenDX + self.grabOffset)
   else
     self.dragging = false
   end
@@ -97,15 +129,35 @@ function Slider:draw()
   love.graphics.setColor(t.color.fg)
   love.graphics.rectangle("fill", self.x, midY - trackH / 2, self.w, trackH, trackH / 2, trackH / 2)
 
-  local handleX = self.x + self.handleR + (self.w - self.handleR * 2) * self:fraction()
+  local handleX = self:_handleX()
   love.graphics.setColor(self.disabled and t.color.disabled or t.color.accent)
   love.graphics.rectangle("fill", self.x, midY - trackH / 2,
     handleX - self.x, trackH, trackH / 2, trackH / 2)
 
-  love.graphics.setColor(self.disabled and t.color.textMuted or t.color.text)
+  -- Ball brightens on hover/drag; its outline picks up the focus accent.
+  local active = not self.disabled and (self.hovered or self.dragging)
+  love.graphics.setColor(self.disabled and t.color.textMuted
+    or (active and t.color.focus or t.color.text))
   love.graphics.circle("fill", handleX, midY, self.handleR)
-  love.graphics.setColor(t.color.border)
+  love.graphics.setColor(active and t.color.accent or t.color.border)
   love.graphics.circle("line", handleX, midY, self.handleR)
+
+  if self.showValue and self.dragging then
+    local font = defaultTheme.getFont(t)
+    love.graphics.setFont(font)
+    local txt = self:_valueText()
+    local pad = t.padding
+    local bw = font:getWidth(txt) + pad
+    local bh = font:getHeight() + pad / 2
+    local bx = handleX - bw / 2
+    local by = self.y - bh - 4
+    love.graphics.setColor(t.color.fg)
+    love.graphics.rectangle("fill", bx, by, bw, bh, t.radius, t.radius)
+    love.graphics.setColor(t.color.border)
+    love.graphics.rectangle("line", bx, by, bw, bh, t.radius, t.radius)
+    love.graphics.setColor(t.color.text)
+    love.graphics.print(txt, bx + pad / 2, by + pad / 4)
+  end
 
   if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
 
@@ -116,7 +168,17 @@ function Slider:mousepressed(px, py, btn)
   if self.disabled or btn ~= 1 then return false end
   if self:contains(px, py) then
     self.dragging = true
-    self:_setFromX(px)
+    -- Remember how the global cursor maps to this local coord so update() can
+    -- follow the mouse even when the slider lives inside a translated container.
+    self.screenDX = (love.mouse.getPosition()) - px
+    -- Grabbing the ball keeps its offset from the cursor so it holds still
+    -- until the pointer moves; clicking the track centers it on the cursor.
+    if self:_onHandle(px, py) then
+      self.grabOffset = self:_handleX() - px
+    else
+      self.grabOffset = 0
+      self:_setFromX(px)
+    end
     return true
   end
   return false
@@ -144,6 +206,12 @@ function Slider:keypressed(key)
     self:_apply(self.max); return true
   end
   return false
+end
+
+-- Hover the ball so it can highlight; screen-space coords (a Container
+-- translates before forwarding), matching the other widgets' hover model.
+function Slider:mousemoved(px, py)
+  self.hovered = not self.disabled and self:_onHandle(px, py)
 end
 
 function Slider:textinput() return false end

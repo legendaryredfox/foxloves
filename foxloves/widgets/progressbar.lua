@@ -6,6 +6,7 @@
 --   min = 0,
 --   max = 1,
 --   animated = true,          -- ease the fill toward value in update(dt)
+--   label = nil,              -- true = "NN%", a string, or function(value,min,max,frac)
 --   theme = <theme table>,
 -- }
 --
@@ -32,9 +33,21 @@ function ProgressBar.new(opts)
   self.min = opts.min or 0
   self.max = opts.max or 1
   self.animated = opts.animated ~= false
+  self.label = opts.label
   self.theme = opts.theme or defaultTheme
   self.display = self:fraction()  -- eased fill fraction; starts settled on value
   return self
+end
+
+-- Text for the overlay label: true = whole percent, a function is called with
+-- (value, min, max, fraction), anything else is shown as-is.
+function ProgressBar:_labelText()
+  if self.label == true then
+    return string.format("%d%%", math.floor(self:fraction() * 100 + 0.5))
+  elseif type(self.label) == "function" then
+    return self.label(self.value, self.min, self.max, self:fraction())
+  end
+  return tostring(self.label)
 end
 
 -- Target fraction filled, in [0, 1].
@@ -73,6 +86,15 @@ function ProgressBar:draw()
 
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
+
+  if self.label ~= nil then
+    local font = defaultTheme.getFont(t)
+    love.graphics.setFont(font)
+    local txt = self:_labelText()
+    love.graphics.setColor(t.color.text)
+    love.graphics.print(txt, self.x + (self.w - font:getWidth(txt)) / 2,
+                        self.y + (self.h - font:getHeight()) / 2)
+  end
 
   love.graphics.setColor(r, g, b, a)
 end

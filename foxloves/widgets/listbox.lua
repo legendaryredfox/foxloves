@@ -9,9 +9,10 @@
 --   theme = <theme table>,
 -- }
 --
--- Rows are clipped to the box. Click a row to select it; drag inside the box to
--- scroll (there is no wheelmoved in the widget contract, so scrolling is by
--- drag). Fires onChange(index) on selection. listbox.selected is readable.
+-- Rows are clipped to the box. Click a row to select it; drag inside the box or
+-- use the scroll wheel to scroll. When the list overflows, a scrollbar track and
+-- thumb are drawn on the right edge to show position and extent. Fires
+-- onChange(index) on selection. listbox.selected is readable.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -80,6 +81,23 @@ function ListBox:maxScroll()
   return math.max(0, #self.items * self.rowH - self.h)
 end
 
+-- Scrollbar geometry (track + thumb) on the right edge, or nil when the content
+-- fits and no bar is needed. Thumb height is proportional to the visible extent;
+-- its position tracks the scroll fraction.
+function ListBox:_scrollbar()
+  local maxS = self:maxScroll()
+  if maxS <= 0 then return nil end
+  local total = #self.items * self.rowH
+  local w = 6
+  local trackX = self.x + self.w - w - 2
+  local trackY = self.y + 2
+  local trackH = self.h - 4
+  local thumbH = math.max(20, trackH * (self.h / total))
+  local thumbY = trackY + (trackH - thumbH) * (self.scroll / maxS)
+  return { x = trackX, y = thumbY, w = w, h = thumbH,
+           trackX = trackX, trackY = trackY, trackH = trackH }
+end
+
 -- Row index under a viewport y, or nil if outside the item range.
 function ListBox:rowAt(py)
   local idx = math.floor((py - self.y + self.scroll) / self.rowH) + 1
@@ -141,6 +159,16 @@ function ListBox:draw()
 
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
+
+  -- Scrollbar affordance: a track + thumb showing position/extent when the list
+  -- overflows the box.
+  local sb = self:_scrollbar()
+  if sb then
+    love.graphics.setColor(t.color.bg)
+    love.graphics.rectangle("fill", sb.trackX, sb.trackY, sb.w, sb.trackH, sb.w / 2, sb.w / 2)
+    love.graphics.setColor(t.color.textMuted)
+    love.graphics.rectangle("fill", sb.x, sb.y, sb.w, sb.h, sb.w / 2, sb.w / 2)
+  end
 
   if util.isFocused(self) then util.focusRing(t, self.x, self.y, self.w, self.h) end
 

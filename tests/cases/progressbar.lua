@@ -34,3 +34,23 @@ do
   s:update(0.001)
   check("non-animated snaps", s.display == 1)
 end
+
+do
+  h.section("ProgressBar label")
+  -- label = true renders a rounded percent of the target fraction.
+  local pb = fox.ProgressBar.new{ w = 100, h = 12, min = 0, max = 1, value = 0.5,
+    label = true }
+  check("percent label text", pb:_labelText() == "50%")
+
+  -- String label is shown verbatim.
+  local named = fox.ProgressBar.new{ w = 100, h = 12, value = 1, label = "Done" }
+  check("string label verbatim", named:_labelText() == "Done")
+
+  -- Function label receives value/min/max/fraction.
+  local fn = fox.ProgressBar.new{ w = 100, h = 12, min = 0, max = 4, value = 3,
+    label = function(v, lo, hi) return v .. "/" .. hi end }
+  check("function label text", fn:_labelText() == "3/4")
+
+  local ok = pcall(function() pb:draw() end)
+  check("draw with label no error", ok)
+end

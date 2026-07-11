@@ -80,3 +80,26 @@ do
   r:setFocus(nil)
   check("unfocused ignores keys", lb:keypressed("down") == false)
 end
+
+do
+  h.section("ListBox scrollbar affordance")
+  local items = {}
+  for i = 1, 30 do items[i] = "row" .. i end
+  local lb = fox.ListBox.new{ x = 0, y = 0, w = 120, h = 100, rowH = 24, items = items }
+  local sb = lb:_scrollbar()
+  check("scrollbar present when overflowing", sb ~= nil)
+  check("thumb within track (top)", sb.y >= sb.trackY and sb.y + sb.h <= sb.trackY + sb.trackH + 0.01)
+
+  -- scroll to the bottom: thumb sits near the track bottom
+  lb.scroll = lb:maxScroll()
+  local sb2 = lb:_scrollbar()
+  check("thumb near bottom when scrolled", sb2.y + sb2.h >= sb2.trackY + sb2.trackH - 0.01)
+
+  -- a short list that fits has no scrollbar
+  local small = fox.ListBox.new{ x = 0, y = 0, w = 120, h = 100, rowH = 24,
+    items = { "a", "b" } }
+  check("no scrollbar when content fits", small:_scrollbar() == nil)
+
+  local ok = pcall(function() lb:draw() end)
+  check("draw with scrollbar no error", ok)
+end

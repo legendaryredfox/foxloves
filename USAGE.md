@@ -125,6 +125,7 @@ fox.Textbox.new{
   value = "",
   placeholder = "Type here...",
   onChange = function(newValue) end,
+  onSubmit = function(value) end,   -- Enter fires this, then blurs
   maxLength = nil,     -- optional cap
   theme = <theme>,
 }
@@ -132,9 +133,10 @@ fox.Textbox.new{
 
 Single-line input with a blinking caret. Click to focus (the caret lands at the
 clicked character), click elsewhere to blur. Supports text entry, backspace,
-caret movement with left/right, and **Home/End**. Text longer than the box
-scrolls horizontally and is clipped so the caret stays visible. Fires
-`onChange(newValue)` on every edit. Read the current text via `textbox.value`.
+forward **Delete**, caret movement with left/right, and **Home/End**. Text
+longer than the box scrolls horizontally and is clipped so the caret stays
+visible. Fires `onChange(newValue)` on every edit; **Enter** fires
+`onSubmit(value)` and clears focus. Read the current text via `textbox.value`.
 
 Note: the caret is byte-indexed, so non-ASCII (multibyte UTF-8) input is not
 yet handled correctly.
@@ -149,13 +151,15 @@ fox.Label.new{
   align = "left",      -- "left" | "center" | "right" (needs w)
   color = nil,         -- table; overrides theme color
   muted = false,       -- shortcut for theme.color.textMuted
+  truncate = false,    -- with w: one line, ellipsis on overflow
   theme = <theme>,
 }
 ```
 
 Static text. With `w` set it draws via `printf` (wraps at `w`, honors `align`);
-without `w` it draws a single line via `print`. `text` is mutable at runtime
-(`label.text = "..."` or `label:setText(s)`). Non-interactive.
+set `truncate = true` to keep it on one line and append `…` when the text is
+wider than `w`. Without `w` it draws a single line via `print`. `text` is mutable
+at runtime (`label.text = "..."` or `label:setText(s)`). Non-interactive.
 
 ## Badge
 
@@ -210,11 +214,14 @@ A separator line in `theme.color.border`. Non-interactive.
 ## ProgressBar
 
 ```lua
-fox.ProgressBar.new{ x, y, w, h, value = 0, min = 0, max = 1, theme }
+fox.ProgressBar.new{ x, y, w, h, value = 0, min = 0, max = 1,
+  animated = true, label = nil, theme }
 ```
 
 Read-only fill sized to `clamp((value - min) / (max - min), 0, 1)`. Set
-`bar.value` to update. Non-interactive.
+`bar.value` to update; the fill eases toward it unless `animated = false`. Set
+`label = true` for a centered `NN%` readout, a string for fixed text, or a
+`function(value, min, max, fraction)` for a custom overlay. Non-interactive.
 
 ## Checkbox
 
@@ -260,6 +267,7 @@ first/last. Read/write `group.selected`. Fires `onChange(index)`.
 ```lua
 fox.Slider.new{
   x, y, w, h = 20, value = 0, min = 0, max = 1, step = nil,
+  showValue = false, format = nil,
   onChange = function(value) end, disabled = false, theme,
 }
 ```
@@ -268,7 +276,9 @@ Drag the handle to pick a value. Pressing the track jumps the value to the
 cursor; while dragging, `update` follows the cursor as long as the left button
 is held (no `mousemoved` callback is needed). Snaps to `step` when set. When
 focused, **arrows** nudge by one step and **Home/End** jump to the ends; the
-scroll wheel over the track also nudges. Fires `onChange(value)`.
+scroll wheel over the track also nudges. Set `showValue = true` to float a value
+bubble above the handle while dragging (`format(value)` customizes its text).
+Fires `onChange(value)`.
 
 ## Stepper
 
@@ -350,6 +360,7 @@ children. Panels nest. Empty panel areas do not consume clicks.
 ```lua
 local dlg = fox.Modal.new{
   w = 320, h = 180, title = "Confirm", message = "Sure?",
+  closable = true,
   buttons = {
     { label = "Cancel" },
     { label = "OK", onClick = function() ... end },
@@ -360,9 +371,10 @@ ui:openOverlay(dlg, { modal = true })
 
 Blocking dialog: dims the screen, centers a panel with title/message/buttons,
 and traps input. Each button runs its `onClick` then closes the dialog; `Esc`
-also closes it. Focus is trapped over the buttons: **Tab/Shift-Tab** (or
-**Left/Right**) cycle them, **Enter** activates the default (primary, rightmost)
-button, and **Space** the focused one.
+also closes it, and `closable = true` adds a top-right **×** that dismisses it.
+Focus is trapped over the buttons: **Tab/Shift-Tab** (or **Left/Right**) cycle
+them, **Enter** activates the default (primary, rightmost) button, and **Space**
+the focused one.
 
 ## Dropdown
 
@@ -421,7 +433,9 @@ fox.ListBox.new{
 
 Scrollable, selectable rows, clipped to the box. Click a row to select it; drag
 inside the box or use the scroll wheel to scroll; the hovered row is highlighted.
-When focused, **Up/Down** move the selection (scrolling it into view),
+When the list overflows, a scrollbar track and thumb on the right edge show
+position and extent. When focused, **Up/Down** move the selection (scrolling it
+into view),
 **Home/End** jump to the ends, **PageUp/PageDown** page by the visible row count,
 and **Enter** re-confirms. Fires `onChange(index)`. `listbox.selected` is
 readable.

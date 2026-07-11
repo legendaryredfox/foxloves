@@ -79,3 +79,31 @@ do
   local ok = pcall(function() nb.focused = true; nb:draw() end)
   check("draw with scroll no error", ok)
 end
+
+do
+  h.section("Textbox submit and delete")
+  local root = fox.Root.new()
+  local submitted
+  local tb = root:add(fox.Textbox.new{ x = 0, y = 0, w = 200, h = 30,
+    value = "hello", onSubmit = function(v) submitted = v end })
+  root:setFocus(tb)
+  check("focused via Root", tb.focused == true)
+
+  -- Enter fires onSubmit with the value and blurs (Root focus clears).
+  tb:keypressed("return")
+  check("onSubmit got value", submitted == "hello")
+  check("blurred after Enter", tb.focused == false)
+  check("Root focus cleared", root.focused == nil)
+
+  -- forward Delete removes the char at the caret, leaving caret put.
+  root:setFocus(tb)
+  tb.caret = 0
+  tb:keypressed("delete")
+  check("delete removed head char", tb.value == "ello")
+  check("caret unchanged by delete", tb.caret == 0)
+
+  -- Delete at end of text is a no-op.
+  tb.caret = #tb.value
+  tb:keypressed("delete")
+  check("delete at end no-op", tb.value == "ello")
+end

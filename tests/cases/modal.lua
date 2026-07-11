@@ -91,3 +91,30 @@ do
   r3:keypressed("space")
   check("space activates focused button", activated == "go")
 end
+
+do
+  h.section("Modal closable ×")
+  local root = fox.Root.new()
+  local m = fox.Modal.new{ w = 300, h = 160, title = "Info", closable = true }
+  root:openOverlay(m, { modal = true })
+  m:update(0.016)                       -- runs layout, positions the panel
+  check("overlay open", #root.overlays == 1)
+
+  local cx, cy, cw, ch = m:_closeRect()
+  check("close rect exists when closable", cx ~= nil)
+  -- a press on the × dismisses the modal
+  root:mousepressed(cx + cw / 2, cy + ch / 2, 1)
+  check("× press closes modal", #root.overlays == 0)
+
+  -- non-closable modal exposes no close rect
+  local plain = fox.Modal.new{ closable = false }
+  check("no close rect when not closable", plain:_closeRect() == nil)
+
+  local ok = pcall(function()
+    local r2 = fox.Root.new()
+    local m2 = fox.Modal.new{ closable = true, title = "X" }
+    r2:openOverlay(m2, { modal = true })
+    m2:update(0.016); m2:draw()
+  end)
+  check("draw closable no error", ok)
+end

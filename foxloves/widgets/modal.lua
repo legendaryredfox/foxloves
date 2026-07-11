@@ -5,12 +5,14 @@
 --   title = "",
 --   message = nil,
 --   buttons = { { label = "OK", onClick = function() end } },
+--   closable = false,   -- draw a top-right × that dismisses the modal
 --   theme = <theme table>,
 -- }
 --
 -- Open it with root:openOverlay(modal, { modal = true }); it then traps all
 -- input, dims the screen, and centers a panel. Each button runs its onClick
--- and then closes the modal. Esc also closes it (handled by Root).
+-- and then closes the modal. Esc also closes it (handled by Root); with
+-- closable = true a corner × closes it too.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -26,6 +28,7 @@ function Modal.new(opts)
   self.h = opts.h or 180
   self.title = opts.title or ""
   self.message = opts.message
+  self.closable = opts.closable or false
   self.theme = opts.theme or defaultTheme
   self.x, self.y = 0, 0  -- filled by layout()
 
@@ -49,6 +52,15 @@ end
 function Modal:_activate(i)
   local btn = self.buttons[i]
   if btn and btn.onClick then btn.onClick(btn) end
+end
+
+-- Hit rect of the close × (x, y, w, h) in screen space, or nil when not
+-- closable. Depends on the panel position from the latest layout().
+function Modal:_closeRect()
+  if not self.closable then return nil end
+  local t = self.theme
+  local s = 18
+  return self.x + self.w - t.padding - s, self.y + t.padding, s, s
 end
 
 -- Center the panel and lay the buttons along its bottom-right.
@@ -99,6 +111,14 @@ function Modal:draw()
       self.w - t.padding * 2, "left")
   end
 
+  -- Close × in the top-right corner.
+  if self.closable then
+    local cx, cy, cw, ch = self:_closeRect()
+    love.graphics.setColor(t.color.textMuted)
+    love.graphics.line(cx + 4, cy + 4, cx + cw - 4, cy + ch - 4)
+    love.graphics.line(cx + cw - 4, cy + 4, cx + 4, cy + ch - 4)
+  end
+
   love.graphics.setColor(r, g, b, a)
 
   for _, btn in ipairs(self.buttons) do btn:draw() end
@@ -112,6 +132,13 @@ function Modal:draw()
 end
 
 function Modal:mousepressed(px, py, btn)
+  if self.closable and btn == 1 then
+    local cx, cy, cw, ch = self:_closeRect()
+    if util.contains(px, py, cx, cy, cw, ch) then
+      if self.root then self.root:closeOverlay(self) end
+      return true
+    end
+  end
   for _, b in ipairs(self.buttons) do
     if b:mousepressed(px, py, btn) then return true end
   end

@@ -32,6 +32,19 @@ function love.load()
         or "type a name first")
     end })
 
+  -- A toast host stacks transient messages in the corner; Notify pushes one,
+  -- cycling through the four kinds so each stripe color shows.
+  local toasts = fox.ToastHost.new{ corner = "br" }
+  local kinds = { "info", "success", "warning", "error" }
+  local nextKind = 1
+  ui:add(fox.Button.new{ x = 40, y = 100, w = 120, h = 34, label = "Notify",
+    onClick = function()
+      local kind = kinds[nextKind]
+      nextKind = nextKind % #kinds + 1
+      toasts:show(kind .. " notification", { kind = kind })
+      setStatus("toast: " .. kind)
+    end })
+
   -- A dropdown and a button that opens a modal dialog.
   local colors = { "Red", "Green", "Blue" }
   ui:add(fox.Dropdown.new{ x = 440, y = 56, w = 160, h = 34, options = colors,
@@ -69,9 +82,18 @@ function love.load()
   -- Right column: a scrollable list of rows.
   local items = {}
   for i = 1, 24 do items[i] = "row " .. i end
-  ui:add(fox.Label.new{ x = 440, y = 150, text = "ListBox (drag to scroll)", muted = true })
+  ui:add(fox.Label.new{ x = 440, y = 150, text = "ListBox (drag scroll, right-click)", muted = true })
   ui:add(fox.ListBox.new{ x = 440, y = 172, w = 240, h = 220, items = items,
     onChange = function(i) setStatus("selected " .. items[i]) end })
+
+  -- Right-clicking the list opens a context menu over its rect.
+  ui:add(fox.ContextMenu.new{ target = { x = 440, y = 172, w = 240, h = 220 },
+    items = {
+      { label = "Refresh",   onClick = function() setStatus("menu: refresh") end },
+      { label = "Duplicate", onClick = function() setStatus("menu: duplicate") end },
+      { separator = true },
+      { label = "Delete",    onClick = function() setStatus("menu: delete") end },
+    } })
 
   -- Two avatars beside the list label: an image (circle) and an initials
   -- fallback (rounded).
@@ -94,6 +116,9 @@ function love.load()
   -- A tooltip over the dropdown, drawn on top because it is added last.
   ui:add(fox.Tooltip.new{ target = { x = 440, y = 56, w = 160, h = 34 },
     text = "pick an accent color" })
+
+  -- Added last: floats over every widget and never captures input.
+  ui:add(toasts)
 end
 
 function love.update(dt) ui:update(dt) end

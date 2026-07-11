@@ -5,12 +5,14 @@
 --   value = "",
 --   placeholder = "Type here...",
 --   onChange = function(newValue) end,
+--   onSubmit = function(value) end,   -- fired on Enter (then blurs)
 --   maxLength = nil,          -- optional cap
 --   theme = <theme table>,
 -- }
 --
 -- Click to focus, click elsewhere to blur. Supports text entry, backspace,
--- and caret movement with left/right. Fires onChange(newValue) on any edit.
+-- forward delete, and caret movement with left/right/Home/End. Fires
+-- onChange(newValue) on any edit; Enter fires onSubmit(value) and blurs.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -30,6 +32,7 @@ function Textbox.new(opts)
   self.value = opts.value or ""
   self.placeholder = opts.placeholder or ""
   self.onChange = opts.onChange
+  self.onSubmit = opts.onSubmit
   self.maxLength = opts.maxLength
   self.theme = opts.theme or defaultTheme
   self.focused = false
@@ -156,6 +159,18 @@ function Textbox:keypressed(key)
       self:_ensureCaretVisible()
       self:_emitChange()
     end
+    return true
+  elseif key == "delete" then
+    if self.caret < #self.value then
+      self.value = self.value:sub(1, self.caret) .. self.value:sub(self.caret + 2)
+      self:_ensureCaretVisible()
+      self:_emitChange()
+    end
+    return true
+  elseif key == "return" or key == "kpenter" then
+    if self.onSubmit then self.onSubmit(self.value) end
+    -- Blur through Root when managed so keyboard focus clears too.
+    if self.root then self.root:setFocus(nil) else self:setFocused(false) end
     return true
   elseif key == "left" then
     self.caret = math.max(0, self.caret - 1)
