@@ -20,7 +20,7 @@ local fox = require("foxloves")
 
 `require("foxloves")` returns a table exposing every widget plus the manager,
 active theme, and shared helpers. Controls: `fox.Button`, `fox.Textbox`,
-`fox.Label`, `fox.Divider`, `fox.ProgressBar`, `fox.Checkbox`, `fox.Toggle`,
+`fox.Label`, `fox.Badge`, `fox.Avatar`, `fox.Divider`, `fox.ProgressBar`, `fox.Checkbox`, `fox.Toggle`,
 `fox.RadioGroup`, `fox.Slider`, `fox.Stepper`, `fox.IconButton`. Containers and
 overlays: `fox.Root`, `fox.Panel`, `fox.Modal`, `fox.Dropdown`, `fox.Tooltip`,
 `fox.Tabs`, `fox.ListBox`. Plus `fox.theme` and `fox.util`.
@@ -156,6 +156,48 @@ fox.Label.new{
 Static text. With `w` set it draws via `printf` (wraps at `w`, honors `align`);
 without `w` it draws a single line via `print`. `text` is mutable at runtime
 (`label.text = "..."` or `label:setText(s)`). Non-interactive.
+
+## Badge
+
+```lua
+fox.Badge.new{
+  x, y,
+  text = "",
+  color = nil,          -- fill override (table); default theme.color.accent
+  textColor = nil,      -- label color override; default theme.color.bg
+  removable = false,    -- draw a × hitbox; fires onRemove when clicked (chip)
+  onRemove = function(self) end,
+  theme = <theme>,
+}
+```
+
+A small pill-shaped label for counts or status. Self-sizes to its text —
+`self.w`/`self.h` are computed on construction and `badge:measure()` returns
+`w, h` for layout containers. `text` is mutable via `badge:setText(s)` (re-
+measures). Inert unless `removable`, in which case clicking the × fires
+`onRemove` and consumes the event; the rest of the badge stays inert.
+
+## Avatar
+
+```lua
+fox.Avatar.new{
+  x, y,
+  size = 40,            -- square; w = h = size
+  image = nil,          -- love Image; cover-scaled and cropped to the frame
+  name = nil,           -- derives fallback initials ("Red Fox" -> "RF")
+  initials = nil,       -- explicit override; wins over name
+  shape = "circle",     -- "circle" | "rounded"
+  color = nil,          -- fallback fill when there is no image; default accent
+  textColor = nil,      -- initials color; default theme.color.bg
+  theme = <theme>,
+}
+```
+
+A framed image. With an `image` it is cover-scaled and cropped to the frame
+(circle clip via stencil, rounded via scissor); without one it fills the shape
+and centers initials derived from `name` (or an explicit `initials`). Self-sizes
+to `size` — `self.w`/`self.h` and `avatar:measure()` return `size, size`.
+Non-interactive.
 
 ## Divider
 

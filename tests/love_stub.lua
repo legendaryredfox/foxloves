@@ -48,6 +48,8 @@ stub.install = function()
   function G.pop() end
   function G.translate() end
   function G.setScissor() end
+  function G.stencil(fn) if fn then fn() end end
+  function G.setStencilTest() end
   function G.getDimensions() return 800, 600 end
 
   love = {

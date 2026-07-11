@@ -7,8 +7,8 @@ lifecycle.
 
 ## Features
 
-- **Controls:** Button, Textbox, Label, Divider, ProgressBar, Checkbox, Toggle,
-  RadioGroup, Slider, Stepper, IconButton.
+- **Controls:** Button, Textbox, Label, Badge, Avatar, Divider, ProgressBar,
+  Checkbox, Toggle, RadioGroup, Slider, Stepper, IconButton.
 - **Containers & overlays:** Panel, Modal, Dropdown, Tooltip, Tabs, ListBox —
   coordinated by `fox.Root` (z-order, input capture, keyboard focus).
 - **Themeable:** every widget reads colors and metrics from a shared theme.

@@ -27,6 +27,8 @@ local cases = {
   "tooltip",
   "tabs",
   "listbox",
+  "badge",
+  "avatar",
   "interaction",
 }
 

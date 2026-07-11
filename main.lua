@@ -73,6 +73,23 @@ function love.load()
   ui:add(fox.ListBox.new{ x = 440, y = 172, w = 240, h = 220, items = items,
     onChange = function(i) setStatus("selected " .. items[i]) end })
 
+  -- Two avatars beside the list label: an image (circle) and an initials
+  -- fallback (rounded).
+  ui:add(fox.Avatar.new{ x = 700, y = 146, size = 34, image = makeIcon() })
+  ui:add(fox.Avatar.new{ x = 700, y = 186, size = 34, name = "Red Fox",
+    shape = "rounded" })
+
+  -- A row of badges under the list: two static, one removable chip.
+  ui:add(fox.Badge.new{ x = 440, y = 404, text = "New" })
+  ui:add(fox.Badge.new{ x = 494, y = 404, text = "Beta",
+    color = fox.theme.color.border })
+  local chip = fox.Badge.new{ x = 560, y = 404, text = "remove me", removable = true }
+  chip.onRemove = function(self)
+    self.x = -1000 -- drop it off-screen; the demo has no list removal
+    setStatus("chip removed")
+  end
+  ui:add(chip)
+
   -- A tooltip over the dropdown, drawn on top because it is added last.
   ui:add(fox.Tooltip.new{ target = { x = 440, y = 56, w = 160, h = 34 },
     text = "pick an accent color" })
