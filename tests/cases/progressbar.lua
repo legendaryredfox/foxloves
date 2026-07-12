@@ -54,3 +54,26 @@ do
   local ok = pcall(function() pb:draw() end)
   check("draw with label no error", ok)
 end
+
+do
+  h.section("ProgressBar indeterminate")
+  local p = fox.ProgressBar.new{ x = 0, y = 0, w = 100, h = 10, indeterminate = true }
+  check("phase starts at 0", p.phase == 0)
+  p:update(0.5)
+  check("phase advances on update", p.phase > 0 and p.phase < 1)
+  -- Phase wraps back into [0, 1) rather than growing unbounded.
+  for _ = 1, 20 do p:update(0.5) end
+  check("phase stays in [0,1)", p.phase >= 0 and p.phase < 1)
+
+  -- value/min/max are ignored: the eased fill display never moves.
+  p.value = 1
+  p:update(0.5)
+  check("determinate fill unused", p.display == 0)
+
+  -- label = true shows no (meaningless) percent while indeterminate.
+  local labeled = fox.ProgressBar.new{ w = 100, h = 12, indeterminate = true, label = true }
+  check("no percent label when indeterminate", labeled:_labelText() == "")
+
+  local ok = pcall(function() p:draw() end)
+  check("indeterminate draw no error", ok)
+end

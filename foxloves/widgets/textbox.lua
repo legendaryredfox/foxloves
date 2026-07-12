@@ -13,6 +13,10 @@
 -- Click to focus, click elsewhere to blur. Supports text entry, backspace,
 -- forward delete, and caret movement with left/right/Home/End. Fires
 -- onChange(newValue) on any edit; Enter fires onSubmit(value) and blurs.
+--
+-- Selection & clipboard: hold Shift with arrows/Home/End (or Shift-click) to
+-- select a range; Ctrl+A selects all; Ctrl+C/X/V copy/cut/paste via the system
+-- clipboard. Typing, Backspace, Delete, or paste replaces the active selection.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -37,6 +41,7 @@ function Textbox.new(opts)
   self.theme = opts.theme or defaultTheme
   self.focused = false
   self.caret = #self.value      -- caret position, in bytes (ASCII-safe)
+  self.anchor = nil             -- selection anchor (byte index); nil = no selection
   self.scrollX = 0              -- horizontal pixel offset to keep caret in view
   self.blink = 0
   self.blinkOn = true
@@ -79,6 +84,56 @@ function Textbox:_ensureCaretVisible()
   if self.scrollX < 0 then self.scrollX = 0 end
 end
 
+-- True when a non-empty selection exists.
+function Textbox:_hasSelection()
+  return self.anchor ~= nil and self.anchor ~= self.caret
+end
+
+-- Sorted selection bounds (lo, hi) in bytes, or nil when there is no selection.
+function Textbox:_selRange()
+  if not self:_hasSelection() then return nil end
+  local a, c = self.anchor, self.caret
+  if a < c then return a, c end
+  return c, a
+end
+
+-- Modifier queries (guarded so headless callers without love.keyboard are safe).
+function Textbox:_isShift()
+  return love.keyboard and love.keyboard.isDown("lshift", "rshift")
+end
+function Textbox:_isCtrl()
+  return love.keyboard and love.keyboard.isDown("lctrl", "rctrl", "lgui", "rgui")
+end
+
+-- Move the caret, extending the selection when `keepSel`, else collapsing it.
+function Textbox:_moveCaret(to, keepSel)
+  if keepSel then
+    if not self.anchor then self.anchor = self.caret end
+  else
+    self.anchor = nil
+  end
+  self.caret = to
+  self:_ensureCaretVisible()
+end
+
+-- Remove the selected range (if any). Returns true when text was deleted.
+function Textbox:_deleteSelection()
+  local lo, hi = self:_selRange()
+  if not lo then return false end
+  self.value = self.value:sub(1, lo) .. self.value:sub(hi + 1)
+  self.caret = lo
+  self.anchor = nil
+  self:_ensureCaretVisible()
+  return true
+end
+
+-- Text currently selected, or "" when nothing is selected.
+function Textbox:_selectedText()
+  local lo, hi = self:_selRange()
+  if not lo then return "" end
+  return self.value:sub(lo + 1, hi)
+end
+
 function Textbox:contains(px, py)
   return px >= self.x and px <= self.x + self.w
      and py >= self.y and py <= self.y + self.h
@@ -117,6 +172,16 @@ function Textbox:draw()
     love.graphics.setColor(t.color.textMuted)
     love.graphics.print(self.placeholder, innerX, textY)
   else
+    -- Selection highlight sits behind the glyphs.
+    if self.focused then
+      local lo, hi = self:_selRange()
+      if lo then
+        local selX = innerX - self.scrollX + self:_textWidth(lo)
+        local selW = self:_textWidth(hi) - self:_textWidth(lo)
+        love.graphics.setColor(t.color.selection or t.color.accent)
+        love.graphics.rectangle("fill", selX, textY, selW, font:getHeight())
+      end
+    end
     love.graphics.setColor(t.color.text)
     love.graphics.print(self.value, innerX - self.scrollX, textY)
   end
@@ -140,8 +205,9 @@ function Textbox:mousepressed(px, py, btn)
   local inside = self:contains(px, py)
   self.focused = inside
   if inside then
-    self.caret = self:_caretFromX(px)
-    self:_ensureCaretVisible()
+    -- Shift-click extends the selection from the current caret; a plain click
+    -- collapses it and drops the caret at the clicked character.
+    self:_moveCaret(self:_caretFromX(px), self:_isShift())
     self.blink, self.blinkOn = 0, true
     return true
   end
@@ -152,8 +218,35 @@ function Textbox:mousereleased(px, py, btn) return false end
 
 function Textbox:keypressed(key)
   if not self.focused then return false end
+
+  -- Clipboard / select-all shortcuts (Ctrl or Cmd held).
+  if self:_isCtrl() then
+    if key == "a" then
+      self.anchor, self.caret = 0, #self.value
+      self:_ensureCaretVisible()
+      return true
+    elseif key == "c" then
+      if self:_hasSelection() then love.system.setClipboardText(self:_selectedText()) end
+      return true
+    elseif key == "x" then
+      if self:_hasSelection() then
+        love.system.setClipboardText(self:_selectedText())
+        self:_deleteSelection()
+        self:_emitChange()
+      end
+      return true
+    elseif key == "v" then
+      local paste = love.system.getClipboardText() or ""
+      if paste ~= "" then self:_insert(paste); self:_emitChange() end
+      return true
+    end
+  end
+
+  local shift = self:_isShift()
   if key == "backspace" then
-    if self.caret > 0 then
+    if self:_deleteSelection() then
+      self:_emitChange()
+    elseif self.caret > 0 then
       self.value = self.value:sub(1, self.caret - 1) .. self.value:sub(self.caret + 1)
       self.caret = self.caret - 1
       self:_ensureCaretVisible()
@@ -161,7 +254,9 @@ function Textbox:keypressed(key)
     end
     return true
   elseif key == "delete" then
-    if self.caret < #self.value then
+    if self:_deleteSelection() then
+      self:_emitChange()
+    elseif self.caret < #self.value then
       self.value = self.value:sub(1, self.caret) .. self.value:sub(self.caret + 2)
       self:_ensureCaretVisible()
       self:_emitChange()
@@ -173,31 +268,50 @@ function Textbox:keypressed(key)
     if self.root then self.root:setFocus(nil) else self:setFocused(false) end
     return true
   elseif key == "left" then
-    self.caret = math.max(0, self.caret - 1)
-    self:_ensureCaretVisible()
+    if self:_hasSelection() and not shift then
+      self:_moveCaret((self:_selRange()), false)   -- collapse to selection start
+    else
+      self:_moveCaret(math.max(0, self.caret - 1), shift)
+    end
     return true
   elseif key == "right" then
-    self.caret = math.min(#self.value, self.caret + 1)
-    self:_ensureCaretVisible()
+    if self:_hasSelection() and not shift then
+      local _, hi = self:_selRange()
+      self:_moveCaret(hi, false)                    -- collapse to selection end
+    else
+      self:_moveCaret(math.min(#self.value, self.caret + 1), shift)
+    end
     return true
   elseif key == "home" then
-    self.caret = 0
-    self:_ensureCaretVisible()
+    self:_moveCaret(0, shift)
     return true
   elseif key == "end" then
-    self.caret = #self.value
-    self:_ensureCaretVisible()
+    self:_moveCaret(#self.value, shift)
     return true
   end
   return false
 end
 
-function Textbox:textinput(text)
-  if not self.focused then return false end
-  if self.maxLength and #self.value >= self.maxLength then return true end
+-- Insert text at the caret, replacing any selection first. Honors maxLength.
+function Textbox:_insert(text)
+  self:_deleteSelection()
+  if self.maxLength then
+    local room = self.maxLength - #self.value
+    if room <= 0 then return end
+    if #text > room then text = text:sub(1, room) end
+  end
   self.value = self.value:sub(1, self.caret) .. text .. self.value:sub(self.caret + 1)
   self.caret = self.caret + #text
   self:_ensureCaretVisible()
+end
+
+function Textbox:textinput(text)
+  if not self.focused then return false end
+  -- Typing over a selection replaces it, even when at the maxLength cap.
+  if not self:_hasSelection() and self.maxLength and #self.value >= self.maxLength then
+    return true
+  end
+  self:_insert(text)
   self:_emitChange()
   return true
 end

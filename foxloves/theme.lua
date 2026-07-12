@@ -10,6 +10,7 @@ local M = {
     border   = {0.35, 0.37, 0.42, 1.0},
     hover    = {0.28, 0.30, 0.35, 1.0}, -- distinct from fg; used for hover fills
     focus    = {0.98, 0.72, 0.40, 1.0}, -- keyboard focus ring (lighter accent)
+    selection= {0.90, 0.55, 0.25, 0.35}, -- text selection highlight (translucent accent)
     disabled = {0.30, 0.31, 0.34, 1.0},
     text     = {0.94, 0.95, 0.97, 1.0},
     textMuted= {0.55, 0.57, 0.62, 1.0},

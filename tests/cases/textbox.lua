@@ -107,3 +107,68 @@ do
   tb:keypressed("delete")
   check("delete at end no-op", tb.value == "ello")
 end
+
+do
+  h.section("Textbox selection & clipboard")
+  local stub = require("tests.love_stub")
+  local last
+  local tb = fox.Textbox.new{ x = 0, y = 0, w = 400, h = 30,
+    value = "hello world", onChange = function(v) last = v end }
+  tb:mousepressed(2, 5, 1)          -- focus, caret near 0
+  tb.caret, tb.anchor = 0, nil
+
+  -- Shift+Right extends a selection; plain Right collapses to its far edge.
+  stub.setKey("lshift", true)
+  tb:keypressed("right"); tb:keypressed("right"); tb:keypressed("right")
+  check("shift-right selects 3 chars", tb.anchor == 0 and tb.caret == 3)
+  check("selected text is 'hel'", tb:_selectedText() == "hel")
+  stub.setKey("lshift", false)
+  tb:keypressed("right")
+  check("plain right collapses to sel end", tb.caret == 3 and tb.anchor == nil)
+
+  -- Ctrl+A selects everything; Ctrl+C copies it.
+  stub.setKey("lctrl", true)
+  tb:keypressed("a")
+  check("ctrl-a selects all", tb.anchor == 0 and tb.caret == #tb.value)
+  tb:keypressed("c")
+  check("ctrl-c copies selection", love.system.getClipboardText() == "hello world")
+
+  -- Typing over a selection replaces it.
+  stub.setKey("lctrl", false)
+  tb:textinput("X")
+  check("typing replaces selection", tb.value == "X")
+  check("onChange saw replacement", last == "X")
+  check("caret after inserted char", tb.caret == 1 and tb.anchor == nil)
+
+  -- Paste inserts clipboard text at the caret (over any selection).
+  stub.setKey("lctrl", true)
+  tb:keypressed("a")                -- select "X"
+  tb:keypressed("v")                -- paste "hello world" over it
+  check("ctrl-v pastes over selection", tb.value == "hello world")
+  stub.setKey("lctrl", false)
+
+  -- Backspace with a selection deletes the range, not one char.
+  tb.anchor, tb.caret = 0, 5        -- select "hello"
+  tb:keypressed("backspace")
+  check("backspace deletes selection", tb.value == " world")
+  check("caret at deletion start", tb.caret == 0)
+
+  -- Cut copies then removes the selection.
+  tb.anchor, tb.caret = 0, #tb.value
+  stub.setKey("lctrl", true)
+  tb:keypressed("x")
+  check("ctrl-x cuts to clipboard", love.system.getClipboardText() == " world")
+  check("ctrl-x empties value", tb.value == "")
+  stub.setKey("lctrl", false)
+
+  -- Shift-click extends a selection from the caret.
+  local cb = fox.Textbox.new{ x = 0, y = 0, w = 400, h = 30, value = "abcdef" }
+  cb:mousepressed(2, 5, 1)          -- caret 0
+  stub.setKey("lshift", true)
+  cb:mousepressed(2 + 8 + 7 * 3, 5, 1)  -- click near char 3 (pad 8, 7px/char)
+  check("shift-click selects to click", cb.anchor == 0 and cb.caret == 3)
+  stub.setKey("lshift", false)
+
+  local ok = pcall(function() cb.focused = true; cb:draw() end)
+  check("draw with selection no error", ok)
+end

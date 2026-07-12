@@ -138,6 +138,12 @@ longer than the box scrolls horizontally and is clipped so the caret stays
 visible. Fires `onChange(newValue)` on every edit; **Enter** fires
 `onSubmit(value)` and clears focus. Read the current text via `textbox.value`.
 
+**Selection & clipboard.** Hold **Shift** with left/right/Home/End — or
+**Shift-click** — to select a range; **Ctrl+A** selects all. **Ctrl+C/X/V**
+copy/cut/paste through the system clipboard (`love.system`). Typing, Backspace,
+Delete, or paste replaces the active selection. The highlight uses
+`theme.color.selection` (falls back to `accent`).
+
 Note: the caret is byte-indexed, so non-ASCII (multibyte UTF-8) input is not
 yet handled correctly.
 
@@ -215,13 +221,18 @@ A separator line in `theme.color.border`. Non-interactive.
 
 ```lua
 fox.ProgressBar.new{ x, y, w, h, value = 0, min = 0, max = 1,
-  animated = true, label = nil, theme }
+  animated = true, indeterminate = false, label = nil, theme }
 ```
 
 Read-only fill sized to `clamp((value - min) / (max - min), 0, 1)`. Set
 `bar.value` to update; the fill eases toward it unless `animated = false`. Set
 `label = true` for a centered `NN%` readout, a string for fixed text, or a
 `function(value, min, max, fraction)` for a custom overlay. Non-interactive.
+
+Set `indeterminate = true` (or flip `bar.indeterminate`) for unknown-duration
+work: a fixed-width chunk cycles across the track each frame, `value/min/max`
+are ignored, and a `label = true` percent is suppressed (a string/function
+label still shows).
 
 ## Checkbox
 

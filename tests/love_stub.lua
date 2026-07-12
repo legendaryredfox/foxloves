@@ -29,6 +29,7 @@ fakeFont = {
 
 local mouse = { x = 0, y = 0, down = {} }
 local keys = {}
+local clipboard = ""
 
 stub.install = function()
   local G = {}
@@ -68,6 +69,10 @@ stub.install = function()
       end,
     },
     event = { quit = function() end },
+    system = {
+      getClipboardText = function() return clipboard end,
+      setClipboardText = function(text) clipboard = text or "" end,
+    },
   }
 end
 

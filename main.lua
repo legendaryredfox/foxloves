@@ -22,7 +22,8 @@ function love.load()
   love.keyboard.setKeyRepeat(true)
   ui = fox.Root.new()
 
-  -- Top row: a name field and a greet button.
+  -- Top row: a name field and a greet button. The field supports Shift+arrows/
+  -- click to select and Ctrl+A/C/X/V for clipboard.
   local name = fox.Textbox.new{ x = 40, y = 56, w = 240, h = 34,
     placeholder = "your name" }
   ui:add(name)
@@ -81,6 +82,8 @@ function love.load()
     onChange = function(v) setStatus("stepper: " .. v) end })
   panel:add(fox.IconButton.new{ x = 160, y = 228, w = 34, h = 34, image = makeIcon(),
     onClick = function() setStatus("icon clicked") end })
+  -- Indeterminate bar: unknown-duration work, a chunk cycles across the track.
+  panel:add(fox.ProgressBar.new{ x = 12, y = 270, w = 260, h = 12, indeterminate = true })
   ui:add(panel)
 
   -- Right column: a scrollable list of rows.
