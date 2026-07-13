@@ -23,7 +23,8 @@ function love.load()
   ui = fox.Root.new()
 
   -- Top row: a name field and a greet button. The field supports Shift+arrows/
-  -- click to select and Ctrl+A/C/X/V for clipboard.
+  -- click to select, Ctrl+A/C/X/V for clipboard, and Ctrl+arrows / Ctrl+Backspace
+  -- for word-by-word motion and deletion.
   local name = fox.Textbox.new{ x = 40, y = 56, w = 240, h = 34,
     placeholder = "your name" }
   ui:add(name)
@@ -46,19 +47,32 @@ function love.load()
       setStatus("toast: " .. kind)
     end })
 
-  -- A dropdown and a button that opens a modal dialog.
+  -- A dropdown that starts unselected (muted placeholder) and a button that
+  -- opens a modal dialog dismissable by clicking its dimmed backdrop.
   local colors = { "Red", "Green", "Blue" }
   ui:add(fox.Dropdown.new{ x = 440, y = 56, w = 160, h = 34, options = colors,
+    selected = 0, placeholder = "accent color…",
     onChange = function(i) setStatus("color: " .. colors[i]) end })
   ui:add(fox.Button.new{ x = 440, y = 100, w = 160, h = 34, label = "About…",
     onClick = function()
       ui:openOverlay(fox.Modal.new{ w = 340, h = 170, title = "About foxloves",
-        message = "A small, themeable UI widget library for LOVE.",
+        message = "A small, themeable UI widget library for LOVE.\n" ..
+          "Click outside this dialog to dismiss it.",
+        dismissOnScrim = true,
         buttons = {
           { label = "Close" },
           { label = "OK", onClick = function() setStatus("dialog: OK") end },
         } }, { modal = true })
     end })
+
+  -- Middle row gap (between Notify and About): a numeric field (type / arrows /
+  -- wheel), its label, and a busy spinner.
+  ui:add(fox.Label.new{ x = 200, y = 108, text = "qty", muted = true })
+  ui:add(fox.NumberField.new{ x = 232, y = 100, w = 90, h = 34, value = 3,
+    min = 0, max = 99, step = 1,
+    onChange = function(v) setStatus("qty: " .. v) end })
+  local spinner = fox.Spinner.new{ x = 338, y = 100, size = 34 }
+  ui:add(spinner)
 
   -- Left panel groups Tier 1 controls in its own coordinate space.
   local panel = fox.Panel.new{ x = 40, y = 150, w = 300, h = 328, title = "Controls" }
@@ -126,6 +140,12 @@ function love.load()
     setStatus("chip removed")
   end
   ui:add(chip)
+
+  -- A segmented control (exclusive button strip) under the badge row.
+  local ranges = { "Day", "Week", "Month" }
+  ui:add(fox.SegmentedControl.new{ x = 440, y = 438, w = 240, h = 30,
+    options = ranges, selected = 2,
+    onChange = function(i) setStatus("range: " .. ranges[i]) end })
 
   -- A tooltip over the dropdown, drawn on top because it is added last.
   ui:add(fox.Tooltip.new{ target = { x = 440, y = 56, w = 160, h = 34 },

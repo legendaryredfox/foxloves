@@ -3,7 +3,8 @@
 -- Dropdown.new{
 --   x, y, w, h = 32,
 --   options = { "One", "Two" },
---   selected = 1,
+--   selected = 1,             -- may be nil / out of range for "nothing chosen yet"
+--   placeholder = "Select…",  -- muted text shown when selected has no option
 --   onChange = function(index) end,
 --   theme = <theme table>,
 -- }
@@ -156,6 +157,7 @@ function Dropdown.new(opts)
   self.h = opts.h or 32
   self.options = opts.options or {}
   self.selected = opts.selected or 1
+  self.placeholder = opts.placeholder or ""
   self.onChange = opts.onChange
   self.theme = opts.theme or defaultTheme
   self.root = nil  -- set by Root:add
@@ -181,6 +183,14 @@ function Dropdown:contains(px, py)
   return util.contains(px, py, self.x, self.y, self.w, self.h)
 end
 
+-- Closed-state trigger label: the selected option, or the muted placeholder
+-- when `selected` points at no option. Returns (text, muted).
+function Dropdown:_displayLabel()
+  local opt = self.options[self.selected]
+  if opt then return opt, false end
+  return self.placeholder, true
+end
+
 function Dropdown:update(dt) end
 
 function Dropdown:draw()
@@ -194,8 +204,8 @@ function Dropdown:draw()
   love.graphics.setColor(t.color.border)
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
 
-  love.graphics.setColor(t.color.text)
-  local label = self.options[self.selected] or ""
+  local label, muted = self:_displayLabel()
+  love.graphics.setColor(muted and t.color.textMuted or t.color.text)
   local ty = self.y + (self.h - font:getHeight()) / 2
   love.graphics.print(label, self.x + t.padding, ty)
 

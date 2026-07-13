@@ -5,14 +5,16 @@
 --   title = "",
 --   message = nil,
 --   buttons = { { label = "OK", onClick = function() end } },
---   closable = false,   -- draw a top-right × that dismisses the modal
+--   closable = false,        -- draw a top-right × that dismisses the modal
+--   dismissOnScrim = false,  -- click the dimmed backdrop (outside the panel) to close
 --   theme = <theme table>,
 -- }
 --
 -- Open it with root:openOverlay(modal, { modal = true }); it then traps all
 -- input, dims the screen, and centers a panel. Each button runs its onClick
 -- and then closes the modal. Esc also closes it (handled by Root); with
--- closable = true a corner × closes it too.
+-- closable = true a corner × closes it too, and dismissOnScrim = true lets a
+-- click on the backdrop outside the panel dismiss it.
 
 local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
@@ -31,6 +33,7 @@ function Modal.new(opts)
   self.title = opts.title or ""
   self.message = opts.message
   self.closable = opts.closable or false
+  self.dismissOnScrim = opts.dismissOnScrim or false
   self.theme = opts.theme or defaultTheme
   self.x, self.y = 0, 0  -- filled by layout()
   -- Entrance animation: anim eases 0->1 in update; draw fades scrim + panel by
@@ -153,6 +156,13 @@ function Modal:mousepressed(px, py, btn)
   end
   for _, b in ipairs(self.buttons) do
     if b:mousepressed(px, py, btn) then return true end
+  end
+  -- A left-click on the backdrop (outside the panel) dismisses when enabled;
+  -- clicks inside the panel body are swallowed by Root's modal trap.
+  if self.dismissOnScrim and btn == 1
+     and not util.contains(px, py, self.x, self.y, self.w, self.h) then
+    if self.root then self.root:closeOverlay(self) end
+    return true
   end
   return false
 end

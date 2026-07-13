@@ -69,3 +69,28 @@ do
   check("draw scrolled popup no error", ok)
   love_stub.setMouse(0, 0)
 end
+
+do
+  h.section("Dropdown placeholder")
+  -- selected out of range shows the muted placeholder, not an empty label.
+  local dd = fox.Dropdown.new{ x = 0, y = 0, options = { "One", "Two" },
+    selected = 0, placeholder = "Pick one" }  -- 0 = out of range = nothing chosen
+  local text, muted = dd:_displayLabel()
+  check("placeholder shown when unselected", text == "Pick one")
+  check("placeholder is muted", muted == true)
+
+  -- A valid selection shows the option in normal (non-muted) text.
+  dd.selected = 2
+  text, muted = dd:_displayLabel()
+  check("option shown when selected", text == "Two")
+  check("selected option not muted", muted == false)
+
+  -- Out-of-range index (past the end) also falls back to the placeholder.
+  dd.selected = 9
+  text, muted = dd:_displayLabel()
+  check("out-of-range falls back to placeholder", text == "Pick one" and muted == true)
+
+  check("draw with placeholder no error", pcall(function()
+    dd.selected = nil; dd:draw()
+  end))
+end

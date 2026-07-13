@@ -172,3 +172,43 @@ do
   local ok = pcall(function() cb.focused = true; cb:draw() end)
   check("draw with selection no error", ok)
 end
+
+do
+  h.section("Textbox word motion")
+  local stub = require("tests.love_stub")
+
+  -- Ctrl+Left/Right jump by whole words.
+  local tb = fox.Textbox.new{ value = "hello world foo" }
+  tb.focused = true
+  tb.caret = #tb.value
+  stub.setKey("lctrl", true)
+  tb:keypressed("left")
+  check("ctrl+left to start of last word", tb.caret == 12)
+  tb:keypressed("left")
+  check("ctrl+left to start of middle word", tb.caret == 6)
+  tb:keypressed("right")
+  check("ctrl+right to end of middle word", tb.caret == 11)
+
+  -- Ctrl+Shift+Left extends a selection over the word.
+  tb.caret = #tb.value; tb.anchor = nil
+  stub.setKey("lshift", true)
+  tb:keypressed("left")
+  check("ctrl+shift+left selects word", tb:_hasSelection() and tb:_selectedText() == "foo")
+  stub.setKey("lshift", false)
+
+  -- Ctrl+Backspace deletes the word before the caret.
+  local changed
+  local tb2 = fox.Textbox.new{ value = "hello world", onChange = function(v) changed = v end }
+  tb2.focused = true; tb2.caret = #tb2.value
+  tb2:keypressed("backspace")
+  check("ctrl+backspace deletes prev word", tb2.value == "hello " and tb2.caret == 6)
+  check("ctrl+backspace fires onChange", changed == "hello ")
+
+  -- Ctrl+Delete deletes the word after the caret.
+  local tb3 = fox.Textbox.new{ value = "hello world" }
+  tb3.focused = true; tb3.caret = 0
+  tb3:keypressed("delete")
+  check("ctrl+delete removes next word", tb3.value == " world" and tb3.caret == 0)
+
+  stub.setKey("lctrl", false)
+end

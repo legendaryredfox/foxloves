@@ -31,6 +31,9 @@ local cases = {
   "avatar",
   "contextmenu",
   "toast",
+  "spinner",
+  "numberfield",
+  "segmentedcontrol",
   "interaction",
 }
 

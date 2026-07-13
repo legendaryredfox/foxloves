@@ -140,3 +140,31 @@ do
   end)
   check("draw closable no error", ok)
 end
+
+do
+  h.section("Modal dismiss on scrim")
+  local root = fox.Root.new()
+  local m = fox.Modal.new{ w = 200, h = 120, dismissOnScrim = true,
+    buttons = { { label = "OK" } } }
+  root:openOverlay(m, { modal = true })
+  m:update(0.016)  -- lays out; panel centered on the 800x600 stub screen
+  -- A click on the backdrop (top-left corner, outside the panel) dismisses.
+  root:mousepressed(2, 2, 1)
+  check("scrim click dismisses", #root.overlays == 0)
+
+  -- Without the flag, a scrim click is swallowed but the modal stays open.
+  local root2 = fox.Root.new()
+  local m2 = fox.Modal.new{ w = 200, h = 120, buttons = { { label = "OK" } } }
+  root2:openOverlay(m2, { modal = true })
+  m2:update(0.016)
+  root2:mousepressed(2, 2, 1)
+  check("scrim click swallowed, modal stays", #root2.overlays == 1)
+
+  -- A click inside the panel body (not a button) does not dismiss even when enabled.
+  local root3 = fox.Root.new()
+  local m3 = fox.Modal.new{ w = 200, h = 120, dismissOnScrim = true, buttons = {} }
+  root3:openOverlay(m3, { modal = true })
+  m3:update(0.016)
+  root3:mousepressed(m3.x + 5, m3.y + 5, 1)
+  check("panel-body click keeps modal open", #root3.overlays == 1)
+end

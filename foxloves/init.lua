@@ -27,6 +27,9 @@ local M = {
   ListBox     = require("foxloves.widgets.listbox"),
   ContextMenu = require("foxloves.widgets.contextmenu"),
   ToastHost   = require("foxloves.widgets.toast"),
+  Spinner     = require("foxloves.widgets.spinner"),
+  NumberField = require("foxloves.widgets.numberfield"),
+  SegmentedControl = require("foxloves.widgets.segmentedcontrol"),
 }
 
 return M

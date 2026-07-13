@@ -134,6 +134,24 @@ function Textbox:_selectedText()
   return self.value:sub(lo + 1, hi)
 end
 
+-- Byte index one word to the left of `from`: skip any whitespace, then the run
+-- of non-whitespace before it (Ctrl+Left / Ctrl+Backspace boundary).
+function Textbox:_wordLeft(from)
+  local i = from
+  while i > 0 and self.value:sub(i, i):match("%s") do i = i - 1 end
+  while i > 0 and not self.value:sub(i, i):match("%s") do i = i - 1 end
+  return i
+end
+
+-- Byte index one word to the right of `from`: skip whitespace, then the run of
+-- non-whitespace after it (Ctrl+Right / Ctrl+Delete boundary).
+function Textbox:_wordRight(from)
+  local i, n = from, #self.value
+  while i < n and self.value:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+  while i < n and not self.value:sub(i + 1, i + 1):match("%s") do i = i + 1 end
+  return i
+end
+
 function Textbox:contains(px, py)
   return px >= self.x and px <= self.x + self.w
      and py >= self.y and py <= self.y + self.h
@@ -238,6 +256,36 @@ function Textbox:keypressed(key)
     elseif key == "v" then
       local paste = love.system.getClipboardText() or ""
       if paste ~= "" then self:_insert(paste); self:_emitChange() end
+      return true
+    elseif key == "left" then
+      self:_moveCaret(self:_wordLeft(self.caret), self:_isShift())
+      return true
+    elseif key == "right" then
+      self:_moveCaret(self:_wordRight(self.caret), self:_isShift())
+      return true
+    elseif key == "backspace" then
+      -- Ctrl+Backspace deletes the whole word before the caret (or the selection).
+      if self:_deleteSelection() then
+        self:_emitChange()
+      elseif self.caret > 0 then
+        local to = self:_wordLeft(self.caret)
+        self.value = self.value:sub(1, to) .. self.value:sub(self.caret + 1)
+        self.caret, self.anchor = to, nil
+        self:_ensureCaretVisible()
+        self:_emitChange()
+      end
+      return true
+    elseif key == "delete" then
+      -- Ctrl+Delete deletes the whole word after the caret (or the selection).
+      if self:_deleteSelection() then
+        self:_emitChange()
+      elseif self.caret < #self.value then
+        local to = self:_wordRight(self.caret)
+        self.value = self.value:sub(1, self.caret) .. self.value:sub(to + 1)
+        self.anchor = nil
+        self:_ensureCaretVisible()
+        self:_emitChange()
+      end
       return true
     end
   end
