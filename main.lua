@@ -61,7 +61,7 @@ function love.load()
     end })
 
   -- Left panel groups Tier 1 controls in its own coordinate space.
-  local panel = fox.Panel.new{ x = 40, y = 150, w = 300, h = 300, title = "Controls" }
+  local panel = fox.Panel.new{ x = 40, y = 150, w = 300, h = 328, title = "Controls" }
   panel:add(fox.Checkbox.new{ x = 12, y = 12, label = "enable feature",
     indeterminate = true,
     onChange = function(on) setStatus("checkbox: " .. tostring(on)) end })
@@ -142,7 +142,7 @@ function love.draw()
   love.graphics.setColor(fox.theme.color.text)
   love.graphics.print("foxloves", 40, 24)
   love.graphics.setColor(fox.theme.color.textMuted)
-  love.graphics.print(status, 40, 470)
+  love.graphics.print(status, 40, 492)
   ui:draw()
 end
 
