@@ -82,6 +82,50 @@ do
 end
 
 do
+  h.section("ListBox type-ahead")
+  local items = { "Apple", "Banana", "Blueberry", "Cherry" }
+  local r = fox.Root.new()
+  local lb = r:add(fox.ListBox.new{ x = 0, y = 0, w = 120, h = 100, rowH = 20,
+    items = items })
+  r:setFocus(lb)
+
+  -- Typing a letter jumps to the first item with that prefix, and consumes the event.
+  check("textinput consumed", lb:textinput("b") == true)
+  check("prefix b selects Banana", lb.selected == 2)
+
+  -- A fast second char refines the buffer (b + l = "bl" => Blueberry).
+  lb:textinput("l")
+  check("bl refines to Blueberry", lb.selected == 3)
+
+  -- After the timeout the buffer resets; a fresh letter starts over.
+  lb:update(2.0)                 -- exceeds the type-ahead timeout
+  lb:textinput("a")
+  check("timeout resets buffer, a selects Apple", lb.selected == 1)
+
+  -- Repeated same letter (fast) cycles through matches.
+  local r2 = fox.Root.new()
+  local lb2 = r2:add(fox.ListBox.new{ x = 0, y = 0, w = 120, h = 100, rowH = 20,
+    items = items })
+  r2:setFocus(lb2)
+  lb2:textinput("b")
+  check("b -> Banana", lb2.selected == 2)
+  lb2:textinput("b")
+  check("bb cycles to Blueberry", lb2.selected == 3)
+  lb2:textinput("b")
+  check("bbb cycles back to Banana", lb2.selected == 2)
+
+  -- Unfocused list ignores type-ahead.
+  r2:setFocus(nil)
+  check("unfocused ignores textinput", lb2:textinput("a") == false)
+
+  -- Empty list is inert.
+  local empty = fox.ListBox.new{ items = {} }
+  empty.focusable = true
+  local okEmpty = pcall(function() empty:textinput("x") end)
+  check("empty list type-ahead no error", okEmpty)
+end
+
+do
   h.section("ListBox scrollbar affordance")
   local items = {}
   for i = 1, 30 do items[i] = "row" .. i end

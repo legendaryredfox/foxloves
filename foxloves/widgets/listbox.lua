@@ -18,6 +18,7 @@ local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
 
 local DRAG_THRESHOLD = 4  -- pixels of movement before a press counts as a drag
+local TYPEAHEAD_TIMEOUT = 1.0  -- seconds of idle before the type-ahead buffer resets
 
 local ListBox = {}
 ListBox.__index = ListBox
@@ -41,6 +42,8 @@ function ListBox.new(opts)
   self.lastY = 0
   self.hover = nil  -- row index under the cursor, or nil
   self.focusable = true
+  self._taBuffer = ""   -- accumulated type-ahead search string
+  self._taTimer = 0     -- seconds since the last type-ahead keystroke
   return self
 end
 
@@ -106,6 +109,7 @@ function ListBox:rowAt(py)
 end
 
 function ListBox:update(dt)
+  self._taTimer = self._taTimer + (dt or 0)
   local mx, my = love.mouse.getPosition()
   if self.dragging then
     if love.mouse.isDown(1) then
@@ -221,6 +225,34 @@ function ListBox:keypressed(key)
   end
   return false
 end
-function ListBox:textinput(text) return false end
+-- Type-ahead: while focused, typing letters jumps the selection to a matching
+-- row. Fast keystrokes build a prefix buffer ("bl" -> first item starting "bl");
+-- after TYPEAHEAD_TIMEOUT of idle the buffer resets. Pressing the same single
+-- letter repeatedly cycles through all items starting with it. Matching is
+-- case-insensitive. Returns true when a keystroke is consumed.
+function ListBox:textinput(text)
+  if not util.isFocused(self) or #self.items == 0 then return false end
+  if self._taTimer > TYPEAHEAD_TIMEOUT then self._taBuffer = "" end
+  self._taTimer = 0
+  self._taBuffer = self._taBuffer .. text:lower()
+
+  -- A buffer of one repeated character searches for that single letter starting
+  -- past the current selection, so repeats cycle; a mixed buffer refines from
+  -- the current selection so a longer prefix can narrow the match in place.
+  local first = self._taBuffer:sub(1, 1)
+  local repeated = self._taBuffer == first:rep(#self._taBuffer)
+  local query = repeated and first or self._taBuffer
+  local from = repeated and (self.selected or 0) + 1 or (self.selected or 1)
+
+  local n = #self.items
+  for offset = 0, n - 1 do
+    local i = (from - 1 + offset) % n + 1
+    if self.items[i]:lower():sub(1, #query) == query then
+      self:_select(i)
+      return true
+    end
+  end
+  return true  -- consumed even when nothing matched, so the buffer stays coherent
+end
 
 return ListBox

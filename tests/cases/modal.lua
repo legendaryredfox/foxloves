@@ -93,6 +93,28 @@ do
 end
 
 do
+  h.section("Modal entrance animation")
+  local m = fox.Modal.new{ buttons = { { label = "OK" } } }
+  check("anim starts at 0", m.anim == 0)
+  m:update(0.05)
+  check("anim advances toward 1", m.anim > 0 and m.anim < 1)
+  for _ = 1, 100 do m:update(0.1) end
+  check("anim settles at 1", m.anim == 1)
+
+  -- animated = false snaps straight to fully shown.
+  local m2 = fox.Modal.new{ animated = false, buttons = {} }
+  check("animated=false starts at 1", m2.anim == 1)
+  m2:update(0.1)
+  check("animated=false stays at 1", m2.anim == 1)
+
+  local okDraw = pcall(function()
+    local m3 = fox.Modal.new{ title = "Hi", buttons = { { label = "OK" } } }
+    m3:update(0.02); m3:draw()
+  end)
+  check("mid-animation draw no error", okDraw)
+end
+
+do
   h.section("Modal closable ×")
   local root = fox.Root.new()
   local m = fox.Modal.new{ w = 300, h = 160, title = "Info", closable = true }

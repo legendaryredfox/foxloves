@@ -18,6 +18,8 @@ local defaultTheme = require("foxloves.theme")
 local util = require("foxloves.util")
 local Button = require("foxloves.widgets.button")
 
+local ANIM_SPEED = 6  -- entrance ease rate (anim units per second; ~0.17s to open)
+
 local Modal = {}
 Modal.__index = Modal
 
@@ -31,6 +33,9 @@ function Modal.new(opts)
   self.closable = opts.closable or false
   self.theme = opts.theme or defaultTheme
   self.x, self.y = 0, 0  -- filled by layout()
+  -- Entrance animation: anim eases 0->1 in update; draw fades scrim + panel by
+  -- it. animated = false snaps straight to fully shown.
+  self.anim = opts.animated == false and 1 or 0
 
   self.buttons = {}
   for _, spec in ipairs(opts.buttons or { { label = "OK" } }) do
@@ -82,6 +87,9 @@ end
 
 function Modal:update(dt)
   self:layout()
+  if self.anim < 1 then
+    self.anim = math.min(1, self.anim + (dt or 0) * ANIM_SPEED)
+  end
   for _, btn in ipairs(self.buttons) do btn:update(dt) end
 end
 
@@ -90,22 +98,26 @@ function Modal:draw()
   local r, g, b, a = love.graphics.getColor()
   local font = defaultTheme.getFont(t)
   local screenW, screenH = love.graphics.getDimensions()
+  local anim = self.anim
+  -- Fade scrim + panel by the entrance progress. tint() applies anim as alpha
+  -- to a theme color so the dialog eases in together with the scrim.
+  local function tint(c) return c[1], c[2], c[3], (c[4] or 1) * anim end
 
   -- Scrim: dim the whole screen behind the dialog.
-  love.graphics.setColor(0, 0, 0, 0.55)
+  love.graphics.setColor(0, 0, 0, 0.55 * anim)
   love.graphics.rectangle("fill", 0, 0, screenW, screenH)
 
   -- Dialog panel.
-  love.graphics.setColor(t.color.bg)
+  love.graphics.setColor(tint(t.color.bg))
   love.graphics.rectangle("fill", self.x, self.y, self.w, self.h, t.radius, t.radius)
-  love.graphics.setColor(t.color.border)
+  love.graphics.setColor(tint(t.color.border))
   love.graphics.rectangle("line", self.x, self.y, self.w, self.h, t.radius, t.radius)
 
   love.graphics.setFont(font)
-  love.graphics.setColor(t.color.text)
+  love.graphics.setColor(tint(t.color.text))
   love.graphics.print(self.title, self.x + t.padding, self.y + t.padding)
   if self.message then
-    love.graphics.setColor(t.color.textMuted)
+    love.graphics.setColor(tint(t.color.textMuted))
     love.graphics.printf(self.message, self.x + t.padding,
       self.y + t.padding * 2 + font:getHeight(),
       self.w - t.padding * 2, "left")
@@ -114,7 +126,7 @@ function Modal:draw()
   -- Close × in the top-right corner.
   if self.closable then
     local cx, cy, cw, ch = self:_closeRect()
-    love.graphics.setColor(t.color.textMuted)
+    love.graphics.setColor(tint(t.color.textMuted))
     love.graphics.line(cx + 4, cy + 4, cx + cw - 4, cy + ch - 4)
     love.graphics.line(cx + cw - 4, cy + 4, cx + 4, cy + ch - 4)
   end
