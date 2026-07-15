@@ -3,6 +3,7 @@
 --        local btn = fox.Button.new{ ... }
 
 local M = {
+  _VERSION    = "1.0.0",
   theme       = require("foxloves.theme"),
   util        = require("foxloves.util"),
   Root        = require("foxloves.root"),
