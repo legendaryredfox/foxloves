@@ -3,18 +3,36 @@
 A small, dependency-free UI design system (widget library) for
 [LÖVE (love2d)](https://love2d.org/), written in Lua. It gives your game or tool
 a themeable set of composable widgets that share one input and drawing
-lifecycle.
+lifecycle — you wire LÖVE's callbacks into a single `Root` and it dispatches
+z-order, input capture, and keyboard focus for you.
 
-## Features
+**Version 1.0.0** — pure Lua, LÖVE 11.x, 24 widgets, 478 headless tests.
 
-- **Controls:** Button, Textbox, Label, Badge, Avatar, Divider, ProgressBar,
-  Checkbox, Toggle, RadioGroup, Slider, Stepper, IconButton.
-- **Containers & overlays:** Panel, Modal, Dropdown, Tooltip, Tabs, ListBox,
-  ContextMenu, ToastHost — coordinated by `fox.Root` (z-order, input capture,
-  keyboard focus).
-- **Themeable:** every widget reads colors and metrics from a shared theme.
-- **No dependencies:** pure Lua, LÖVE 11.x.
-- **Headless tests:** the suite mocks the LÖVE API and runs without a window.
+📖 **[Read the manual →](https://romulofer.github.io/foxloves_manual/)**
+
+## Why foxloves
+
+- **One lifecycle.** Every widget speaks the same `update / draw / mousepressed /
+  keypressed / textinput` contract. `fox.Root` owns the tree and routes events so
+  overlays (modals, dropdowns, tooltips, toasts) capture input correctly.
+- **Themeable.** Colors, radius, padding, and font live in a shared theme table.
+  Override globally or per-widget by passing `theme = {...}`.
+- **No dependencies.** Pure Lua on the semantics LÖVE ships (Lua 5.1 / LuaJIT).
+  Drop the folder in and require it.
+- **Testable.** The suite mocks the LÖVE API and runs headless — no window, CI
+  friendly, non-zero exit on failure.
+
+## Widgets
+
+**Controls** — Button, IconButton, Textbox, NumberField, Label, Badge, Avatar,
+Divider, ProgressBar, Spinner, Checkbox, Toggle, RadioGroup, SegmentedControl,
+Slider, Stepper.
+
+**Containers & overlays** — Panel, Modal, Dropdown, Tooltip, Tabs, ListBox,
+ContextMenu, ToastHost.
+
+Overlays are coordinated by `fox.Root`: z-order stacking, modal input capture,
+and keyboard-focus traversal are handled centrally so widgets stay simple.
 
 ## Requirements
 
@@ -54,7 +72,21 @@ function love.keypressed(key)
 end
 ```
 
-See [USAGE.md](USAGE.md) for the full widget reference.
+`Root:keypressed` returns `true` when a widget consumed the key (an open modal, a
+focused textbox), so guard your own shortcuts behind that check.
+
+## Theming
+
+Every widget reads colors and metrics from a theme table. Override per-widget:
+
+```lua
+ui:add(fox.Button.new{ x = 40, y = 40, w = 120, h = 34, label = "Danger",
+  theme = { color = { accent = {0.86, 0.32, 0.30, 1.0} } } })
+```
+
+The default theme ("fox orange" accent) lives in `foxloves/theme.lua`. See the
+[manual](https://romulofer.github.io/foxloves_manual/) for the full color and
+metric keys.
 
 ## Running the demo
 
@@ -76,7 +108,9 @@ Exit code is non-zero if any check fails, so it drops straight into CI.
 
 ## Documentation
 
-- [USAGE.md](USAGE.md) — full widget reference and theming guide.
+- 📖 **[Online manual](https://romulofer.github.io/foxloves_manual/)** — full guide,
+  widget reference, theming.
+- [USAGE.md](USAGE.md) — offline widget reference and theming guide.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — widget contract, conventions, workflow.
 - [AGENTS.md](AGENTS.md) — instructions for AI agents working on the project.
 
